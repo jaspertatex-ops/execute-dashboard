@@ -203,15 +203,8 @@
         }
 
         /* ── Grid ── */
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .grid { display: grid; grid-template-columns: 3fr 2fr; gap: 18px; }
         .col { display: flex; flex-direction: column; gap: 18px; }
-
-        /* Left column: schedule (3fr) + goals panel (2fr) side by side */
-        .left-col-split {
-            display: grid; grid-template-columns: 3fr 2fr;
-            gap: 18px; align-items: start;
-        }
-        @media (max-width: 860px) { .left-col-split { grid-template-columns: 1fr; } }
 
         /* ── Monthly Goals Panel ── */
         .goals-panel {
@@ -758,7 +751,7 @@
 
         /* ── Responsive ── */
         @media (max-width: 860px) {
-            .grid       { grid-template-columns: 1fr; }
+            .grid       { grid-template-columns: 1fr; } /* stacks to single column */
             .stats-row  { grid-template-columns: repeat(2, 1fr); }
             .nn-grid    { grid-template-columns: repeat(2, 1fr); }
             .hero-inner { padding: 40px 20px 56px; }
@@ -959,34 +952,32 @@
     <!-- Main Grid -->
     <div class="grid">
         <div class="col">
-            <div class="left-col-split">
 
-                <!-- Schedule card -->
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">📋 Daily Schedule</div>
-                        <button class="btn btn-ghost" onclick="resetDay()">Reset day</button>
-                    </div>
-                    <div class="card-body">
-                        <div class="prog-wrap">
-                            <div class="prog-labels"><span>Progress</span><span id="schedPct">0%</span></div>
-                            <div class="prog-track"><div class="prog-fill" id="schedBar" style="width:0%"></div></div>
-                        </div>
-                        <div class="schedule-list" id="schedList"></div>
-                    </div>
+            <!-- Schedule card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📋 Daily Schedule</div>
+                    <button class="btn btn-ghost" onclick="resetDay()">Reset day</button>
                 </div>
-
-                <!-- Monthly Goals panel -->
-                <div class="goals-panel">
-                    <div class="goals-panel-inner">
-                        <div class="goals-panel-title">Monthly Goals</div>
-                        <hr class="goals-divider">
-                        <div id="monthlyGoalsList"></div>
-                        <div class="goals-note">Check these every morning.</div>
+                <div class="card-body">
+                    <div class="prog-wrap">
+                        <div class="prog-labels"><span>Progress</span><span id="schedPct">0%</span></div>
+                        <div class="prog-track"><div class="prog-fill" id="schedBar" style="width:0%"></div></div>
                     </div>
+                    <div class="schedule-list" id="schedList"></div>
                 </div>
-
             </div>
+
+            <!-- Monthly Goals panel — same width as schedule above -->
+            <div class="goals-panel">
+                <div class="goals-panel-inner">
+                    <div class="goals-panel-title">Monthly Goals</div>
+                    <hr class="goals-divider">
+                    <div id="monthlyGoalsList"></div>
+                    <div class="goals-note">Check these every morning.</div>
+                </div>
+            </div>
+
         </div>
 
         <div class="col">
