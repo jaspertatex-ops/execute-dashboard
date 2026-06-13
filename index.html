@@ -772,9 +772,89 @@
             .app       { padding: 16px; }
             .hero-title { font-size: 38px; }
         }
+
+        /* ═══════════════════════════════════════════
+           PATTERN LOCK SCREEN
+        ═══════════════════════════════════════════ */
+        #lockScreen {
+            position: fixed; inset: 0; z-index: 9999;
+            background: #000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #lockWrap { position: relative; display: inline-block; }
+        #lockCanvas {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+        #lockGrid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: clamp(20px, 5vw, 28px); position: relative; z-index: 1;
+        }
+        .lk-dot {
+            width: clamp(62px, 16vw, 76px); height: clamp(62px, 16vw, 76px);
+            border-radius: 50%; background: #1a1a1a; border: 2px solid #333;
+            cursor: pointer; touch-action: manipulation;
+            transition: box-shadow .15s, background .15s, border-color .15s;
+            user-select: none; -webkit-user-select: none;
+        }
+        .lk-dot:not(.lk-active):not(.lk-fail):hover {
+            box-shadow: 0 0 0 6px rgba(155,89,182,.12), 0 0 22px rgba(155,89,182,.30);
+        }
+        .lk-dot.lk-active {
+            background: #c8f060; border-color: #c8f060;
+            box-shadow: 0 0 14px #c8f060, 0 0 32px rgba(200,240,96,.40);
+        }
+        .lk-dot.lk-fail {
+            background: #f87171; border-color: #f87171;
+            box-shadow: 0 0 14px #f87171, 0 0 32px rgba(248,113,113,.40);
+            animation: lkFlash .5s ease;
+        }
+        @keyframes lkFlash {
+            0%,100% { opacity: 1; }
+            30%     { opacity: .30; }
+            65%     { opacity: .30; }
+        }
+        #lockGrid.lk-shake { animation: lkShake .5s ease; }
+        @keyframes lkShake {
+            0%,100% { transform: translateX(0); }
+            15%     { transform: translateX(-10px); }
+            30%     { transform: translateX(10px); }
+            45%     { transform: translateX(-8px); }
+            60%     { transform: translateX(8px); }
+            75%     { transform: translateX(-5px); }
+            90%     { transform: translateX(5px); }
+        }
     </style>
 </head>
 <body>
+
+<!-- PATTERN LOCK SCREEN -->
+<div id="lockScreen">
+    <div id="lockWrap">
+        <canvas id="lockCanvas"></canvas>
+        <div id="lockGrid">
+            <div class="lk-dot" data-n="1"></div>
+            <div class="lk-dot" data-n="2"></div>
+            <div class="lk-dot" data-n="3"></div>
+            <div class="lk-dot" data-n="4"></div>
+            <div class="lk-dot" data-n="5"></div>
+            <div class="lk-dot" data-n="6"></div>
+            <div class="lk-dot" data-n="7"></div>
+            <div class="lk-dot" data-n="8"></div>
+            <div class="lk-dot" data-n="9"></div>
+        </div>
+    </div>
+</div>
+<script>
+// Immediate auth check — synchronous, before first paint, to avoid flicker
+(function () {
+    var s = localStorage.getItem('auth_unlocked');
+    if (s && (Date.now() - parseInt(s, 10)) < 86400000) {
+        document.getElementById('lockScreen').style.display = 'none';
+    }
+}());
+</script>
 
 <!-- AURORA HERO -->
 <div class="hero-header">
@@ -2180,6 +2260,116 @@ setInterval(checkDayRollover, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
 // Save on page unload so closing the tab doesn't lose the day
 window.addEventListener('beforeunload', () => saveDayLog());
+</script>
+
+<script>
+// ── Pattern Lock ──────────────────────────────────────────────────────
+(function () {
+    const CORRECT = [2, 4, 6, 7];
+    const CYCLE   = ['#c8f060', '#9b59b6', '#60a5fa', '#fbbf24', '#ec4899', '#22d3ee'];
+
+    const ls = document.getElementById('lockScreen');
+    if (!ls || ls.style.display === 'none') return; // already bypassed by inline check
+
+    let selected = [], locked = false, ctx = null;
+    const dots   = Array.from(document.querySelectorAll('.lk-dot'));
+    const canvas = document.getElementById('lockCanvas');
+    const wrap   = document.getElementById('lockWrap');
+
+    function sizeCanvas() {
+        const r = wrap.getBoundingClientRect();
+        canvas.width  = Math.round(r.width)  || 1;
+        canvas.height = Math.round(r.height) || 1;
+        ctx = canvas.getContext('2d');
+        redraw();
+    }
+
+    function center(n) {
+        const wr = wrap.getBoundingClientRect();
+        const dr = dots[n - 1].getBoundingClientRect();
+        return { x: dr.left + dr.width / 2 - wr.left, y: dr.top + dr.height / 2 - wr.top };
+    }
+
+    function redraw(color) {
+        if (!ctx || selected.length < 2) {
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.lineWidth   = 3;
+        ctx.strokeStyle = color || '#9b59b6';
+        ctx.lineCap     = 'round';
+        ctx.lineJoin    = 'round';
+        const p0 = center(selected[0]);
+        ctx.moveTo(p0.x, p0.y);
+        for (let i = 1; i < selected.length; i++) {
+            const p = center(selected[i]);
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+    }
+
+    function pick(n) {
+        if (locked || selected.includes(n) || selected.length >= 4) return;
+        selected.push(n);
+        dots[n - 1].classList.add('lk-active');
+        redraw();
+        if (selected.length === 4) { locked = true; setTimeout(check, 60); }
+    }
+
+    function check() {
+        const ok = selected.every((n, i) => n === CORRECT[i]);
+        if (ok) {
+            redraw('#c8f060');
+            setTimeout(successAnim, 150);
+        } else {
+            redraw('#f87171');
+            dots.forEach(d => { if (d.classList.contains('lk-active')) d.classList.add('lk-fail'); });
+            const grid = document.getElementById('lockGrid');
+            grid.classList.add('lk-shake');
+            setTimeout(() => { grid.classList.remove('lk-shake'); reset(); }, 500);
+        }
+    }
+
+    function reset() {
+        selected = []; locked = false;
+        dots.forEach(d => { d.className = 'lk-dot'; d.style.cssText = ''; });
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function successAnim() {
+        let f = 0;
+        const total = 90; // ~1.5s at 60fps
+        function step() {
+            if (f >= total) {
+                ls.style.transition = 'opacity .6s ease';
+                ls.style.opacity    = '0';
+                localStorage.setItem('auth_unlocked', String(Date.now()));
+                setTimeout(() => { ls.style.display = 'none'; }, 640);
+                return;
+            }
+            const base = Math.floor(f / 5) % CYCLE.length;
+            dots.forEach((d, i) => {
+                const c = CYCLE[(base + i) % CYCLE.length];
+                d.style.background  = c;
+                d.style.borderColor = c;
+                d.style.boxShadow   = '0 0 18px ' + c + ', 0 0 42px ' + c + '80';
+            });
+            f++;
+            requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    dots.forEach(d => {
+        const n = parseInt(d.dataset.n, 10);
+        d.addEventListener('pointerdown', e => { e.preventDefault(); pick(n); });
+    });
+
+    requestAnimationFrame(sizeCanvas);
+    window.addEventListener('resize', sizeCanvas);
+}());
 </script>
 </body>
 </html>
