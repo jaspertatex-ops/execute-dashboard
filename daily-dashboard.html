@@ -1,0 +1,2193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c6af7'/><path d='M8 17L13 22L24 11' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        :root {
+            --bg:           #0d0f18;
+            --surface:      #141720;
+            --surface2:     #1c2030;
+            --border:       #252a3a;
+            --border-light: #2e3448;
+            --accent:       #7c6af7;
+            --accent-light: #a99fff;
+            --accent-dim:   rgba(124,106,247,0.12);
+            --green:        #4ade80;
+            --green-dim:    rgba(74,222,128,0.1);
+            --red:          #f87171;
+            --yellow:       #fbbf24;
+            --blue:         #60a5fa;
+            --text:         #e2e8f0;
+            --text-muted:   #4b5563;
+            --text-secondary: #94a3b8;
+            --radius:       14px;
+            --radius-sm:    9px;
+        }
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* ═══════════════════════════════════════════
+           AURORA HERO HEADER
+        ═══════════════════════════════════════════ */
+        .hero-header {
+            position: relative; width: 100%; overflow: hidden; background: #06080f;
+        }
+        .aurora {
+            position: absolute;
+            inset: -60px -60px 0 -60px;
+            filter: blur(90px);
+            will-change: transform;
+        }
+        .aurora-blob { position: absolute; border-radius: 50%; mix-blend-mode: screen; }
+        .b1 {
+            width: 75vw; max-width: 960px; height: 320px;
+            background: radial-gradient(ellipse at center, rgba(139,92,246,.90) 0%, rgba(109,40,217,.40) 45%, transparent 70%);
+            top: -60px; left: -8vw;
+            animation: drift1 11s ease-in-out infinite alternate;
+        }
+        .b2 {
+            width: 60vw; max-width: 780px; height: 280px;
+            background: radial-gradient(ellipse at center, rgba(59,130,246,.85) 0%, rgba(37,99,235,.35) 45%, transparent 70%);
+            top: -20px; left: 18vw;
+            animation: drift2 13s ease-in-out infinite alternate;
+        }
+        .b3 {
+            width: 55vw; max-width: 700px; height: 260px;
+            background: radial-gradient(ellipse at center, rgba(6,182,212,.80) 0%, rgba(14,165,233,.30) 45%, transparent 70%);
+            top: -40px; right: -4vw;
+            animation: drift3 9s ease-in-out infinite alternate;
+        }
+        .b4 {
+            width: 40vw; max-width: 520px; height: 220px;
+            background: radial-gradient(ellipse at center, rgba(163,230,53,.45) 0%, rgba(132,204,22,.15) 45%, transparent 70%);
+            bottom: 20px; left: 30vw;
+            animation: drift4 14s ease-in-out infinite alternate;
+        }
+        .b5 {
+            width: 45vw; max-width: 600px; height: 180px;
+            background: radial-gradient(ellipse at center, rgba(34,211,238,.55) 0%, rgba(6,182,212,.20) 45%, transparent 70%);
+            top: 30px; left: 42vw;
+            animation: drift5 10s ease-in-out infinite alternate;
+        }
+        @keyframes drift1 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(14vw,50px) scale(1.18)} }
+        @keyframes drift2 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-10vw,40px) scale(.88)} }
+        @keyframes drift3 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-13vw,60px) scale(1.12)} }
+        @keyframes drift4 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(10vw,-50px) scale(1.30)} }
+        @keyframes drift5 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-8vw,30px) scale(.82)} }
+        .aurora-fade {
+            position: absolute; bottom:0; left:0; right:0; height:120px;
+            background: linear-gradient(to bottom, transparent 0%, rgba(13,15,24,.60) 55%, #0d0f18 100%);
+            z-index:1; pointer-events:none;
+        }
+        .hero-inner {
+            position: relative; z-index: 2;
+            max-width: 1380px; margin: 0 auto; padding: 52px 24px 68px;
+            display: flex; align-items: flex-end; justify-content: space-between;
+            gap: 24px; flex-wrap: wrap;
+        }
+        .hero-title {
+            font-size: clamp(44px, 5.8vw, 72px); font-weight: 800; color: #fff;
+            letter-spacing: -0.025em; line-height: 1; margin-bottom: 12px;
+            text-shadow: 0 0 40px rgba(255,255,255,.18), 0 2px 80px rgba(139,92,246,.25);
+        }
+        .hero-sub {
+            font-size: 14px; color: rgba(255,255,255,.50); font-weight: 400;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap; letter-spacing: .01em;
+        }
+        .hero-sep { opacity: .35; }
+        .hero-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-bottom: 2px; }
+        .chip {
+            border-radius: 50px; padding: 8px 16px; font-size: 13px; font-weight: 500;
+            display: flex; align-items: center; gap: 7px;
+            background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+            color: rgba(255,255,255,.75);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        }
+        .live-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--green); box-shadow: 0 0 7px var(--green);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .sync-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--yellow); transition: background .6s, box-shadow .6s;
+        }
+
+        /* ═══════════════════════════════════════════
+           APP BODY
+        ═══════════════════════════════════════════ */
+        .app { max-width: 1380px; margin: 0 auto; padding: 20px 24px 28px; }
+
+        /* ── Motivational quote ── */
+        .motd {
+            margin-bottom: 22px; padding: 11px 18px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-left: 3px solid var(--accent); border-radius: var(--radius-sm);
+            font-size: 13px; font-style: italic; color: var(--text-secondary);
+            letter-spacing: .015em; animation: motdFade .6s ease both;
+        }
+        @keyframes motdFade { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+        .motd-red   { border-left-color: #ff4444; color: #ff6b6b; }
+        .motd-green { border-left-color: var(--green); color: var(--green); }
+
+        /* ── Stats row ── */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 14px; margin-bottom: 22px;
+        }
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px; text-align: center;
+            transition: border-color .2s;
+        }
+        .stat-card:hover { border-color: var(--border-light); }
+        .stat-value {
+            font-size: 34px; font-weight: 800; line-height: 1; margin-bottom: 5px;
+            font-variant-numeric: tabular-nums;
+        }
+        .stat-label {
+            font-size: 11px; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: .08em; font-weight: 600;
+        }
+
+        /* ── Non-Negotiables ── */
+        .nn-section { margin-bottom: 22px; }
+        .nn-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .nn-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-secondary); }
+        .nn-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 10px; }
+        .nn-item {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 18px 12px;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 10px; cursor: pointer; transition: all .2s; text-align: center;
+        }
+        .nn-item:hover { border-color: var(--border-light); background: var(--surface2); }
+        .nn-item.nn-done { background: rgba(248,113,113,.10); border-color: rgba(248,113,113,.35); }
+        .nn-icon { font-size: 26px; line-height: 1; }
+        .nn-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); line-height: 1.3; }
+        .nn-item.nn-done .nn-label { color: var(--text-muted); }
+        .nn-ring {
+            width: 20px; height: 20px; border-radius: 50%;
+            border: 2px solid var(--border-light);
+            display: flex; align-items: center; justify-content: center;
+            transition: all .2s; flex-shrink: 0;
+        }
+        .nn-item.nn-done .nn-ring { background: #f87171; border-color: #f87171; }
+        .nn-ring::after {
+            content: ''; display: none;
+            width: 4px; height: 9px;
+            border: 2px solid #fff; border-top: none; border-left: none;
+            transform: rotate(45deg) translate(-1px,-2px);
+        }
+        .nn-item.nn-done .nn-ring::after { display: block; }
+        .nn-prog-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .nn-prog-fill {
+            height: 100%; background: linear-gradient(90deg, #ef4444, #f87171);
+            border-radius: 2px; transition: width .5s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* ── Grid ── */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .col { display: flex; flex-direction: column; gap: 18px; }
+
+        /* Left column: schedule (3fr) + goals panel (2fr) side by side */
+        .left-col-split {
+            display: grid; grid-template-columns: 3fr 2fr;
+            gap: 18px; align-items: start;
+        }
+        @media (max-width: 860px) { .left-col-split { grid-template-columns: 1fr; } }
+
+        /* ── Monthly Goals Panel ── */
+        .goals-panel {
+            background: #000d00;
+            border: 0.5px solid #002a00;
+            border-left: 3px solid #00cc44;
+            border-radius: 0 10px 10px 0;
+            animation: goalsBorderPulse 3s ease-in-out infinite;
+            overflow: hidden;
+        }
+        @keyframes goalsBorderPulse {
+            0%, 100% { box-shadow: inset 3px 0 0 #00cc44, -4px 0 18px rgba(0,204,68,0.08); }
+            50%       { box-shadow: inset 3px 0 0 #00ff55, -4px 0 36px rgba(0,255,85,0.26); }
+        }
+        .goals-panel-inner { padding: 18px 18px 16px; }
+        .goals-panel-title {
+            font-family: 'Syne', 'Inter', sans-serif;
+            font-size: 13px; font-weight: 700; color: #00cc44;
+            text-transform: uppercase; letter-spacing: .09em; margin-bottom: 12px;
+        }
+        .goals-divider { border: none; border-top: 1px solid rgba(0,204,68,0.16); margin: 0 0 10px; }
+        .goal-item {
+            display: flex; align-items: flex-start; gap: 9px;
+            padding: 7px 6px; border-radius: 6px; cursor: pointer;
+            transition: background .15s; margin-bottom: 2px;
+        }
+        .goal-item:hover { background: rgba(0,204,68,0.07); }
+        .goal-item.goal-done .goal-label { text-decoration: line-through; color: rgba(0,204,68,0.40); }
+        .goal-ring {
+            width: 15px; height: 15px; border-radius: 4px; margin-top: 2px;
+            border: 2px solid rgba(0,204,68,0.35); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; transition: all .2s;
+        }
+        .goal-item.goal-done .goal-ring { background: #00cc44; border-color: #00cc44; }
+        .goal-ring::after {
+            content: ''; display: none; width: 3px; height: 6px;
+            border: 2px solid #000; border-top: none; border-left: none;
+            transform: rotate(45deg) translate(-1px,-1px);
+        }
+        .goal-item.goal-done .goal-ring::after { display: block; }
+        .goal-label { font-size: 12px; color: rgba(0,230,80,0.75); line-height: 1.4; }
+        .goals-note {
+            font-size: 11px; color: rgba(0,204,68,0.38);
+            margin-top: 12px; font-style: italic;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); overflow: hidden;
+            animation: fadeUp .35s ease both;
+        }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        .card-header {
+            padding: 16px 20px 14px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-title {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .1em; color: var(--text-secondary);
+            display: flex; align-items: center; gap: 7px;
+        }
+        .card-body { padding: 18px 20px; }
+
+        /* ── Progress bar ── */
+        .prog-wrap { margin-bottom: 14px; }
+        .prog-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+        .prog-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .prog-fill {
+            height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 2px; transition: width .5s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* ── Schedule ── */
+        .schedule-list { display: flex; flex-direction: column; gap: 1px; max-height: 520px; overflow-y: auto; }
+        .sched-item {
+            display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+            border-radius: var(--radius-sm); cursor: pointer; transition: background .15s;
+            border-left: 2px solid transparent;
+        }
+        .sched-item:hover { background: var(--surface2); }
+        .sched-item.done .sched-text { text-decoration: line-through; color: var(--text-muted); }
+        .sched-item.done .sched-time { color: var(--text-muted); }
+        .sched-item.current { background: rgba(124,106,247,.06); border-left-color: var(--accent); }
+        .sched-check {
+            width: 17px; height: 17px; border-radius: 5px; border: 2px solid var(--border-light);
+            flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .2s;
+        }
+        .sched-item.done .sched-check { background: var(--green); border-color: var(--green); }
+        .sched-check::after {
+            content: ''; display: none; width: 4px; height: 8px;
+            border: 2px solid #000; border-top: none; border-left: none;
+            transform: rotate(45deg) translate(-1px,-1px);
+        }
+        .sched-item.done .sched-check::after { display: block; }
+        .sched-time { font-size: 11px; font-weight: 600; color: var(--accent-light); min-width: 56px; font-variant-numeric: tabular-nums; }
+        .sched-text { font-size: 13px; flex: 1; color: var(--text); }
+        .now-badge {
+            font-size: 9px; font-weight: 700; padding: 2px 6px;
+            background: var(--accent-dim); color: var(--accent-light);
+            border-radius: 4px; text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0;
+        }
+
+        /* ── Tag pills ── */
+        .tag { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 5px; text-transform: uppercase; letter-spacing: .07em; flex-shrink: 0; border: 1px solid transparent; }
+        .tag-work   { background: rgba(74,222,128,.18);  color: #4ade80; border-color: rgba(74,222,128,.3); }
+        .tag-health { background: rgba(96,165,250,.18);  color: #60a5fa; border-color: rgba(96,165,250,.3); }
+        .tag-mind   { background: rgba(169,159,255,.18); color: #c4baff; border-color: rgba(169,159,255,.3); }
+        .tag-block  { background: rgba(248,113,113,.18); color: #f87171; border-color: rgba(248,113,113,.3); }
+
+        /* ── To-Do ── */
+        .todo-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+        .field {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text);
+            font-family: inherit; font-size: 13px; outline: none; transition: border-color .2s;
+        }
+        .field:focus { border-color: var(--accent); }
+        .field::placeholder { color: var(--text-muted); }
+        .field.grow { flex: 1; }
+        select.field { cursor: pointer; }
+        .btn {
+            padding: 9px 14px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+            font-family: inherit; font-size: 13px; font-weight: 500; transition: all .15s; white-space: nowrap;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-light); }
+        .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); font-size: 11px; padding: 5px 10px; }
+        .btn-ghost:hover { color: var(--text); border-color: var(--border-light); }
+        .todo-list { display: flex; flex-direction: column; gap: 3px; max-height: 280px; overflow-y: auto; }
+        .todo-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); }
+        .todo-item:hover { background: var(--surface2); }
+        .todo-item:hover .del-btn { opacity: 1; }
+        .todo-item.done .todo-text { text-decoration: line-through; color: var(--text-muted); }
+        .todo-ring {
+            width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-light);
+            flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s;
+        }
+        .todo-item.done .todo-ring { background: var(--accent); border-color: var(--accent); }
+        .todo-ring::after { content: ''; display: none; width: 3px; height: 7px; border: 2px solid #fff; border-top: none; border-left: none; transform: rotate(45deg) translate(-1px,-1px); }
+        .todo-item.done .todo-ring::after { display: block; }
+        .todo-text { font-size: 13px; flex: 1; cursor: pointer; }
+        .pri { font-size: 10px; padding: 3px 8px; border-radius: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; border: 1px solid transparent; }
+        .pri-high { background: rgba(248,113,113,.18); color: #f87171; border-color: rgba(248,113,113,.3); }
+        .pri-med  { background: rgba(251,191,36,.18);  color: #fbbf24; border-color: rgba(251,191,36,.3); }
+        .pri-low  { background: rgba(74,222,128,.18);  color: #4ade80; border-color: rgba(74,222,128,.3); }
+        .del-btn { opacity: 0; background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; line-height: 1; padding: 1px 4px; border-radius: 4px; transition: all .15s; }
+        .del-btn:hover { color: var(--red); }
+        .empty { text-align: center; padding: 28px; color: var(--text-muted); font-size: 13px; }
+
+        /* ── Tabs ── */
+        .tabs { display: flex; gap: 3px; padding: 4px; background: var(--surface2); border-radius: 10px; margin-bottom: 14px; }
+        .tab { flex: 1; padding: 7px 10px; border-radius: 7px; border: none; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; transition: all .15s; }
+        .tab.active { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ── Textarea ── */
+        textarea.field { resize: vertical; line-height: 1.7; width: 100%; }
+        .save-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+        .save-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+        /* ── Report ── */
+        .report-box {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px;
+            font-size: 12px; line-height: 1.7; color: var(--text-secondary); font-family: 'Courier New', monospace;
+            max-height: 220px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 10px; display: none;
+        }
+        .copy-btn {
+            width: 100%; padding: 11px; background: var(--accent-dim); border: 1px solid var(--accent);
+            border-radius: var(--radius-sm); color: var(--accent-light); font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all .2s; display: none;
+        }
+        .copy-btn:hover { background: var(--accent); color: #fff; }
+        .copy-btn.ok { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+        .section-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin: 12px 0 6px; }
+        .section-label:first-child { margin-top: 0; }
+
+        /* ═══════════════════════════════════════════
+           HISTORY SECTION
+        ═══════════════════════════════════════════ */
+        .history-section { margin-top: 22px; }
+        .hist-toggle { display: flex; gap: 4px; }
+        .hist-btn {
+            padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 500;
+            font-family: inherit; cursor: pointer; transition: all .15s;
+        }
+        .hist-btn.active { background: var(--surface2); color: var(--text); border-color: var(--border-light); }
+        .hist-btn:hover:not(.active) { color: var(--text-secondary); }
+        .hist-summary {
+            font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;
+            min-height: 18px;
+        }
+        .hist-grid-wrap { overflow-x: auto; padding-bottom: 4px; }
+        .hist-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(88px, 1fr));
+            gap: 8px;
+            min-width: 560px;
+        }
+        .hist-dow {
+            font-size: 10px; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .07em;
+            text-align: center; padding: 4px 0;
+        }
+        .day-card {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 11px 10px;
+            display: flex; flex-direction: column; gap: 3px;
+            min-height: 96px;
+        }
+        .day-card.has-data { cursor: pointer; transition: transform .15s, border-color .15s; }
+        .day-card.has-data:hover { transform: translateY(-2px); border-color: var(--border-light); }
+        .day-card.day-good { border-color: rgba(74,222,128,.40); background: rgba(74,222,128,.05); }
+        .day-card.day-ok   { border-color: rgba(251,191,36,.40); background: rgba(251,191,36,.05); }
+        .day-card.day-bad  { border-color: rgba(248,113,113,.40); background: rgba(248,113,113,.05); }
+        .day-card.day-today { box-shadow: 0 0 0 1px var(--accent); }
+        .day-card.day-empty { opacity: .35; pointer-events: none; }
+        .dc-day  { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+        .dc-num  { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1; }
+        .dc-mon  { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-left: 2px; }
+        .dc-pct  { font-size: 13px; font-weight: 700; margin-top: 2px; }
+        .dc-pct.good { color: var(--green); }
+        .dc-pct.ok   { color: var(--yellow); }
+        .dc-pct.bad  { color: var(--red); }
+        .dc-nn   { display: flex; gap: 3px; margin: 2px 0; }
+        .nn-dot  { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+        .nn-dot.on { background: #f87171; }
+        .dc-sub  { font-size: 10px; color: var(--text-muted); }
+        .dc-live { font-size: 9px; font-weight: 700; background: var(--accent-dim); color: var(--accent-light); padding: 1px 5px; border-radius: 3px; display: inline-block; margin-top: 1px; }
+
+        /* ═══════════════════════════════════════════
+           DAY DETAIL MODAL
+        ═══════════════════════════════════════════ */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 2000;
+            background: rgba(0,0,0,.78);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            display: none; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: var(--surface); border: 1px solid var(--border-light);
+            border-radius: var(--radius); max-width: 680px; width: 100%;
+            max-height: 88vh; overflow-y: auto;
+            animation: fadeUp .22s ease both;
+        }
+        .modal-inner { padding: 28px; }
+        .modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+        .modal-date    { font-size: 17px; font-weight: 700; color: var(--text); }
+        .modal-verdict { font-size: 11px; font-weight: 800; margin-top: 5px; text-transform: uppercase; letter-spacing: .08em; }
+        .modal-close {
+            background: none; border: none; cursor: pointer; color: var(--text-muted);
+            font-size: 22px; line-height: 1; padding: 2px 6px; border-radius: 5px; transition: color .15s;
+        }
+        .modal-close:hover { color: var(--text); }
+        .modal-stats {
+            display: flex; gap: 16px; flex-wrap: wrap;
+            background: var(--surface2); border-radius: var(--radius-sm);
+            padding: 12px 16px; margin-bottom: 18px;
+        }
+        .modal-stat { font-size: 13px; color: var(--text-secondary); }
+        .modal-stat strong { color: var(--text); font-weight: 700; }
+        .modal-sec {
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+            color: var(--text-muted); margin: 18px 0 8px;
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        }
+        .modal-field-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+        .modal-field-text  { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 14px; }
+        .modal-report-pre {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+            padding: 14px; font-size: 11px; line-height: 1.7; color: var(--text-secondary);
+            font-family: 'Courier New', monospace; white-space: pre-wrap;
+            max-height: 280px; overflow-y: auto;
+        }
+
+        /* ── Deadline Banner ── */
+        .deadline-banner {
+            width: 100%;
+            background: #120000;
+            border-left: 3px solid #ff4444;
+            animation: borderPulse 3s ease-in-out infinite;
+        }
+        @keyframes borderPulse {
+            0%, 100% { box-shadow: inset 3px 0 0 #ff4444, -4px 0 24px rgba(255,68,68,0.12); }
+            50%       { box-shadow: inset 3px 0 0 #ff4444, -4px 0 44px rgba(255,68,68,0.38); }
+        }
+        .dlb-top {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 22px 32px 18px; gap: 20px; flex-wrap: wrap;
+        }
+        .dlb-title {
+            font-size: 22px; font-weight: 800; color: #fff;
+            letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 5px;
+        }
+        .dlb-sub {
+            font-size: 12px; color: rgba(255,80,80,0.65);
+            font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+        }
+        .dlb-countdown { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+        .dlb-days {
+            font-size: 58px; font-weight: 800; color: #ff4444; line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 40px rgba(255,68,68,0.55);
+        }
+        .dlb-days-label {
+            font-size: 11px; font-weight: 700; color: rgba(255,68,68,0.50);
+            text-transform: uppercase; letter-spacing: .12em; margin-top: 3px;
+            text-align: right;
+        }
+        .dlb-divider {
+            border: none; border-top: 1px solid rgba(255,68,68,0.18); margin: 0 32px;
+        }
+        .dlb-bottom {
+            display: grid; grid-template-columns: 1fr 240px;
+            gap: 28px; padding: 18px 32px 22px; align-items: start;
+        }
+        /* Milestones */
+        .dlb-milestones {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 2px 20px;
+        }
+        .dlb-ms-item {
+            display: flex; align-items: center; gap: 9px; padding: 6px 8px;
+            border-radius: 6px; cursor: pointer; transition: background .15s;
+        }
+        .dlb-ms-item:hover { background: rgba(255,68,68,0.08); }
+        .dlb-ms-item.ms-done .dlb-ms-label { text-decoration: line-through; color: #4ade80; }
+        .dlb-ms-ring {
+            width: 16px; height: 16px; border-radius: 50%;
+            border: 2px solid rgba(255,68,68,0.40); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; transition: all .2s;
+        }
+        .dlb-ms-item.ms-done .dlb-ms-ring { background: #4ade80; border-color: #4ade80; }
+        .dlb-ms-ring::after {
+            content: ''; display: none; width: 3px; height: 7px;
+            border: 2px solid #000; border-top: none; border-left: none;
+            transform: rotate(45deg) translate(-1px,-1px);
+        }
+        .dlb-ms-item.ms-done .dlb-ms-ring::after { display: block; }
+        .dlb-ms-label { font-size: 13px; color: rgba(255,190,190,0.80); font-weight: 500; line-height: 1.3; }
+        /* Earnings panel */
+        .dlb-earnings { display: flex; flex-direction: column; gap: 10px; }
+        .dlb-earnings-title {
+            font-size: 10px; font-weight: 700; color: rgba(255,68,68,0.55);
+            text-transform: uppercase; letter-spacing: .1em;
+        }
+        .dlb-current-text { font-size: 14px; font-weight: 700; color: #fff; }
+        .dlb-prog-track {
+            height: 6px; background: rgba(255,68,68,0.15); border-radius: 3px; overflow: hidden;
+        }
+        .dlb-prog-fill {
+            height: 100%; border-radius: 3px;
+            transition: width .6s cubic-bezier(.4,0,.2,1), background-color .6s;
+        }
+        .dlb-input-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+        .dlb-input-prefix { font-size: 14px; font-weight: 700; color: rgba(255,100,100,0.6); }
+        .dlb-earned-input {
+            background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.28);
+            border-radius: 7px; padding: 7px 10px; color: #fff;
+            font-family: inherit; font-size: 14px; font-weight: 700;
+            outline: none; width: 100px; transition: border-color .2s;
+        }
+        .dlb-earned-input:focus { border-color: #ff4444; background: rgba(255,68,68,0.12); }
+        .dlb-earned-input::placeholder { color: rgba(255,100,100,0.3); font-weight: 400; }
+        /* Mobile */
+        @media (max-width: 700px) {
+            .dlb-top { padding: 18px 20px 14px; }
+            .dlb-days { font-size: 44px; }
+            .dlb-bottom { grid-template-columns: 1fr; gap: 18px; padding: 16px 20px 20px; }
+            .dlb-divider { margin: 0 20px; }
+            .dlb-milestones { grid-template-columns: 1fr; }
+        }
+
+        /* ── Kill List ── */
+        .kill-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); margin-bottom: 22px; overflow: hidden;
+        }
+        .kill-header {
+            padding: 14px 20px 12px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .kill-header-title {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .1em; color: var(--text-secondary);
+        }
+        .kill-status {
+            font-size: 11px; font-weight: 700; padding: 3px 10px;
+            border-radius: 20px; letter-spacing: .04em;
+        }
+        .kill-body {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+        }
+        .kill-section { padding: 20px; border-right: 1px solid var(--border); }
+        .kill-section:last-child { border-right: none; }
+
+        .kill-section-title {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px;
+        }
+        .kill-amount {
+            font-size: 44px; font-weight: 800; line-height: 1; margin-bottom: 14px;
+            background: linear-gradient(135deg, var(--yellow) 0%, #f97316 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .kill-prog-track {
+            height: 6px; background: var(--border); border-radius: 3px;
+            overflow: hidden; margin-bottom: 8px;
+        }
+        .kill-prog-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--yellow), #f97316);
+            border-radius: 3px;
+            transition: width .6s cubic-bezier(.4,0,.2,1);
+        }
+        .kill-pct-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+        .kill-earned-row { display: flex; align-items: center; gap: 8px; }
+        .kill-earned-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+        .kill-earned-input {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 7px; padding: 6px 10px; color: var(--text);
+            font-family: inherit; font-size: 13px; font-weight: 600;
+            outline: none; transition: border-color .2s; width: 90px;
+        }
+        .kill-earned-input:focus { border-color: var(--yellow); }
+
+        .kill-countdown-boxes { display: flex; gap: 10px; margin-bottom: 10px; }
+        .kill-box {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 14px; text-align: center; flex: 1;
+        }
+        .kill-box-num { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+        .kill-box-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; margin-top: 4px; }
+        .kill-deadline { font-size: 12px; color: var(--text-muted); }
+
+        .kill-milestone {
+            display: flex; align-items: center; gap: 10px;
+            padding: 7px 8px; border-radius: 7px; cursor: pointer;
+            transition: background .15s; margin-bottom: 2px;
+        }
+        .kill-milestone:hover { background: var(--surface2); }
+        .kill-milestone.ms-done .ms-label { color: var(--text-muted); text-decoration: line-through; }
+        .ms-ring {
+            width: 16px; height: 16px; border-radius: 50%;
+            border: 2px solid var(--border-light); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; transition: all .2s;
+        }
+        .kill-milestone.ms-done .ms-ring { background: var(--yellow); border-color: var(--yellow); }
+        .ms-ring::after {
+            content: ''; display: none; width: 3px; height: 7px;
+            border: 2px solid #000; border-top: none; border-left: none;
+            transform: rotate(45deg) translate(-1px,-1px);
+        }
+        .kill-milestone.ms-done .ms-ring::after { display: block; }
+        .ms-label { font-size: 13px; color: var(--text); flex: 1; }
+
+        /* ── Gym Banner ── */
+        .gym-banner {
+            width: 100%;
+            background: #0d0d00;
+            border: 0.5px solid #2a2a00;
+            border-left: 3px solid #ffcc00;
+            border-radius: 0 10px 10px 0;
+            margin-top: 8px;
+            animation: gymBorderPulse 3s ease-in-out infinite;
+        }
+        @keyframes gymBorderPulse {
+            0%, 100% { box-shadow: inset 3px 0 0 #ffcc00, -4px 0 20px rgba(255,204,0,0.08); }
+            50%       { box-shadow: inset 3px 0 0 #ffcc00, -4px 0 38px rgba(255,204,0,0.28); }
+        }
+        .gym-top {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 28px 14px; gap: 20px; flex-wrap: wrap;
+        }
+        .gym-title {
+            font-family: 'Syne', 'Inter', sans-serif;
+            font-size: 19px; font-weight: 700; color: #ffcc00;
+            letter-spacing: -0.01em; line-height: 1.1; margin-bottom: 4px;
+        }
+        .gym-sub {
+            font-size: 11px; font-weight: 600; color: rgba(255,204,0,0.45);
+            text-transform: uppercase; letter-spacing: .06em;
+        }
+        .gym-streak-box { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+        .gym-streak-num {
+            font-size: 50px; font-weight: 800; color: #ffcc00; line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 30px rgba(255,204,0,0.40);
+        }
+        .gym-streak-label {
+            font-size: 10px; font-weight: 700; color: rgba(255,204,0,0.42);
+            text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; text-align: right;
+        }
+        .gym-divider { border: none; border-top: 1px solid rgba(255,204,0,0.10); margin: 0 28px; }
+        .gym-body { padding: 16px 28px 18px; }
+
+        /* Day circles */
+        .gym-circles { display: flex; gap: 8px; margin-bottom: 14px; }
+        .gym-circle-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
+        .gym-circle {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 2px solid rgba(255,204,0,0.18);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all .2s; font-size: 15px; font-weight: 800;
+            color: transparent; background: transparent; user-select: none;
+        }
+        .gym-circle:hover:not(.gym-future) { border-color: rgba(255,204,0,0.55); background: rgba(255,204,0,0.07); }
+        .gym-circle.gym-done  { background: #ffcc00; border-color: #ffcc00; color: #000; }
+        .gym-circle.gym-today { border-color: #ffcc00; }
+        .gym-circle.gym-future { opacity: .28; cursor: default; pointer-events: none; }
+        .gym-day-label {
+            font-size: 10px; font-weight: 700; color: rgba(255,204,0,0.38);
+            text-transform: uppercase; letter-spacing: .04em;
+        }
+        .gym-circle-wrap.gym-today-wrap .gym-day-label { color: rgba(255,204,0,0.75); }
+
+        /* Gym dot on history cards */
+        .dc-gym { width: 8px; height: 8px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+        .dc-gym.gym-yes { background: #ffcc00; box-shadow: 0 0 4px rgba(255,204,0,.45); }
+        .dc-gym.gym-no  { background: var(--border); }
+
+        /* Progress */
+        .gym-prog-label { font-size: 11px; color: rgba(255,204,0,0.40); margin-bottom: 5px; }
+        .gym-prog-track {
+            height: 4px; background: rgba(255,204,0,0.10); border-radius: 2px; overflow: hidden;
+        }
+        .gym-prog-fill {
+            height: 100%; background: #ffcc00; border-radius: 2px;
+            transition: width .5s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* Mobile */
+        @media (max-width: 560px) {
+            .gym-top  { padding: 16px 18px 12px; }
+            .gym-body { padding: 14px 18px 16px; }
+            .gym-divider { margin: 0 18px; }
+            .gym-streak-num { font-size: 38px; }
+            .gym-circle { width: 34px; height: 34px; font-size: 13px; }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 860px) {
+            .grid       { grid-template-columns: 1fr; }
+            .stats-row  { grid-template-columns: repeat(2, 1fr); }
+            .nn-grid    { grid-template-columns: repeat(2, 1fr); }
+            .hero-inner { padding: 40px 20px 56px; }
+        }
+        @media (max-width: 660px) {
+            .kill-body { grid-template-columns: 1fr; }
+            .kill-section { border-right: none; border-top: 1px solid var(--border); }
+            .kill-section:first-child { border-top: none; }
+        }
+        @media (max-width: 560px) {
+            .hero-inner { flex-direction: column; align-items: flex-start; gap: 20px; padding: 36px 20px 52px; }
+            .hero-right { width: 100%; }
+        }
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .nn-grid   { grid-template-columns: repeat(2, 1fr); }
+            .app       { padding: 16px; }
+            .hero-title { font-size: 38px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- AURORA HERO -->
+<div class="hero-header">
+    <div class="aurora" aria-hidden="true">
+        <div class="aurora-blob b1"></div>
+        <div class="aurora-blob b2"></div>
+        <div class="aurora-blob b3"></div>
+        <div class="aurora-blob b4"></div>
+        <div class="aurora-blob b5"></div>
+    </div>
+    <div class="aurora-fade" aria-hidden="true"></div>
+    <div class="hero-inner">
+        <div class="hero-left">
+            <div class="hero-title">EXECUTE.</div>
+            <div class="hero-sub">
+                <span id="greeting">Good morning</span>
+                <span class="hero-sep">—</span>
+                <span id="dateLabel"></span>
+            </div>
+        </div>
+        <div class="hero-right">
+            <div class="chip" id="clock">--:-- --</div>
+            <div class="chip"><div class="live-dot"></div><span id="overallProg">0 of 0 done</span></div>
+            <div class="chip" id="syncChip" title="Connecting…"><div class="sync-dot" id="syncDot"></div><span id="syncLabel" style="font-size:11px;">…</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- Deadline Banner (quote sits between this and the gym banner) -->
+<div class="deadline-banner">
+
+    <!-- Top row: title + countdown -->
+    <div class="dlb-top">
+        <div>
+            <div class="dlb-title">$2,000 by July 1st</div>
+            <div class="dlb-sub">Non-negotiable. Pay it back.</div>
+        </div>
+        <div class="dlb-countdown">
+            <div class="dlb-days" id="deadlineDays">—</div>
+            <div class="dlb-days-label">days left</div>
+        </div>
+    </div>
+
+    <div class="dlb-divider"></div>
+
+    <!-- Bottom: milestones + earnings -->
+    <div class="dlb-bottom">
+        <div class="dlb-milestones" id="dlbMilestones"></div>
+        <div class="dlb-earnings">
+            <div class="dlb-earnings-title">Current earnings</div>
+            <div class="dlb-current-text" id="dlbCurrentText">$0 / $2,000</div>
+            <div class="dlb-prog-track">
+                <div class="dlb-prog-fill" id="dlbProgFill" style="width:0%;background-color:#ff4444"></div>
+            </div>
+            <div class="dlb-input-row">
+                <span class="dlb-input-prefix">$</span>
+                <input type="number" class="dlb-earned-input" id="dlbEarnedInput"
+                    min="0" max="9999" placeholder="0"
+                    oninput="updateDlbEarned(this.value)">
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Quote — between deadline and gym banners -->
+<div style="max-width:1380px;margin:0 auto;padding:8px 24px;">
+    <div class="motd" id="motd" style="margin-bottom:0;"></div>
+</div>
+
+<!-- Gym Tracker Banner -->
+<div class="gym-banner">
+    <div class="gym-top">
+        <div>
+            <div class="gym-title">Gym every day</div>
+            <div class="gym-sub">6:30 AM — no excuses</div>
+        </div>
+        <div class="gym-streak-box">
+            <div class="gym-streak-num" id="gymStreakNum">0</div>
+            <div class="gym-streak-label">day streak</div>
+        </div>
+    </div>
+    <div class="gym-divider"></div>
+    <div class="gym-body">
+        <div class="gym-circles" id="gymCircles"></div>
+        <div class="gym-prog-label" id="gymProgLabel">This week — 0 / 7 days</div>
+        <div class="gym-prog-track">
+            <div class="gym-prog-fill" id="gymProgFill" style="width:0%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD BODY -->
+<div class="app">
+
+    <!-- Kill List -->
+    <div class="kill-card">
+        <div class="kill-header">
+            <div class="kill-header-title">🎯 Kill List — First $1,000 Online</div>
+            <div class="kill-status" id="killStatus"></div>
+        </div>
+        <div class="kill-body">
+
+            <!-- Goal -->
+            <div class="kill-section">
+                <div class="kill-section-title">Goal</div>
+                <div class="kill-amount">$1,000</div>
+                <div class="kill-prog-track">
+                    <div class="kill-prog-fill" id="killProgFill" style="width:0%"></div>
+                </div>
+                <div class="kill-pct-label" id="killPctLabel">$0 earned — 0%</div>
+                <div class="kill-earned-row">
+                    <span class="kill-earned-label">Earned: $</span>
+                    <input type="number" class="kill-earned-input" id="killEarnedInput"
+                        min="0" max="9999" placeholder="0"
+                        oninput="updateKillEarned(this.value)">
+                </div>
+            </div>
+
+            <!-- Countdown -->
+            <div class="kill-section">
+                <div class="kill-section-title">Time Remaining</div>
+                <div class="kill-countdown-boxes">
+                    <div class="kill-box">
+                        <div class="kill-box-num" id="killWeeks">—</div>
+                        <div class="kill-box-label">Weeks</div>
+                    </div>
+                    <div class="kill-box">
+                        <div class="kill-box-num" id="killDays">—</div>
+                        <div class="kill-box-label">Days</div>
+                    </div>
+                </div>
+                <div class="kill-deadline" id="killDeadlineDate"></div>
+            </div>
+
+            <!-- Milestones -->
+            <div class="kill-section">
+                <div class="kill-section-title">Milestones</div>
+                <div id="killMilestones"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-value" id="statSched" style="color:var(--accent-light)">0%</div>
+            <div class="stat-label">Schedule</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statTodos" style="color:var(--green)">0%</div>
+            <div class="stat-label">To-Dos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statStreak" style="color:var(--yellow)">0</div>
+            <div class="stat-label">Day Streak 🔥</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statNN" style="color:var(--red)">0/4</div>
+            <div class="stat-label">Non-Negotiables</div>
+        </div>
+    </div>
+
+    <!-- Non-Negotiables -->
+    <div class="nn-section">
+        <div class="nn-header">
+            <div class="nn-title">🔴 Non-Negotiables</div>
+        </div>
+        <div class="nn-grid" id="nnGrid"></div>
+        <div class="nn-prog-track">
+            <div class="nn-prog-fill" id="nnProgFill" style="width:0%"></div>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid">
+        <div class="col">
+            <div class="left-col-split">
+
+                <!-- Schedule card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📋 Daily Schedule</div>
+                        <button class="btn btn-ghost" onclick="resetDay()">Reset day</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="prog-wrap">
+                            <div class="prog-labels"><span>Progress</span><span id="schedPct">0%</span></div>
+                            <div class="prog-track"><div class="prog-fill" id="schedBar" style="width:0%"></div></div>
+                        </div>
+                        <div class="schedule-list" id="schedList"></div>
+                    </div>
+                </div>
+
+                <!-- Monthly Goals panel -->
+                <div class="goals-panel">
+                    <div class="goals-panel-inner">
+                        <div class="goals-panel-title">Monthly Goals</div>
+                        <hr class="goals-divider">
+                        <div id="monthlyGoalsList"></div>
+                        <div class="goals-note">Check these every morning.</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">✅ To-Do List</div>
+                    <button class="btn btn-ghost" onclick="clearDone()">Clear done</button>
+                </div>
+                <div class="card-body">
+                    <div class="todo-input-row">
+                        <input type="text" class="field grow" id="todoInput" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTodo()">
+                        <select class="field" id="priSelect">
+                            <option value="med">Med</option>
+                            <option value="high">High</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="addTodo()">Add</button>
+                    </div>
+                    <div class="prog-wrap">
+                        <div class="prog-labels"><span>Tasks done</span><span id="todoPct">0 / 0</span></div>
+                        <div class="prog-track"><div class="prog-fill" id="todoBar" style="width:0%"></div></div>
+                    </div>
+                    <div class="todo-list" id="todoList"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📝 Notes & Reflection</div>
+                </div>
+                <div class="card-body">
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('notes',this)">Notes</button>
+                        <button class="tab" onclick="switchTab('reflect',this)">Reflection</button>
+                        <button class="tab" onclick="switchTab('report',this)">Claude Report</button>
+                    </div>
+
+                    <div class="tab-pane active" id="tab-notes">
+                        <textarea class="field" id="notesArea" rows="6"
+                            placeholder="Jot down anything — ideas, blockers, random thoughts…"
+                            oninput="autoSave('notes',this.value)"></textarea>
+                        <div class="save-hint"><div class="save-dot"></div> Auto-saved locally</div>
+                    </div>
+
+                    <div class="tab-pane" id="tab-reflect">
+                        <div class="section-label">What did you not complete today?</div>
+                        <textarea class="field" id="missedArea" rows="3"
+                            placeholder="e.g. Skipped morning workout, didn't finish deep work block…"
+                            oninput="autoSave('missed',this.value)"></textarea>
+                        <div class="section-label">Why didn't you do it?</div>
+                        <textarea class="field" id="whyArea" rows="3"
+                            placeholder="Be honest. What actually got in the way?"
+                            oninput="autoSave('why',this.value)"></textarea>
+                        <div class="section-label">What will you change tomorrow?</div>
+                        <textarea class="field" id="changeArea" rows="2"
+                            placeholder="One specific, actionable change…"
+                            oninput="autoSave('change',this.value)"></textarea>
+                    </div>
+
+                    <div class="tab-pane" id="tab-report">
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
+                            Generate a full day summary to paste into a Claude chat for personalised advice.
+                        </p>
+                        <div class="section-label">Your question for Claude (optional)</div>
+                        <textarea class="field" id="claudeQ" rows="2"
+                            placeholder="e.g. How do I stop skipping my evening routine?"></textarea>
+                        <button class="btn btn-primary" onclick="generateReport()" style="width:100%;margin:12px 0 10px;">
+                            Generate Report
+                        </button>
+                        <div class="report-box" id="reportBox"></div>
+                        <button class="copy-btn" id="copyBtn" onclick="copyReport()">Copy to Clipboard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History -->
+    <div class="history-section">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📊 History</div>
+                <div class="hist-toggle">
+                    <button class="hist-btn active" onclick="switchHistory('week',this)">Last 7 Days</button>
+                    <button class="hist-btn" onclick="switchHistory('month',this)">Last 30 Days</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="hist-summary" id="histSummary"></div>
+                <div id="histGymSummary"></div>
+                <div class="hist-grid-wrap">
+                    <div class="hist-grid" id="histGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /.app -->
+
+<!-- Day Detail Modal -->
+<div class="modal-overlay" id="dayModal" onclick="if(event.target===this)closeDayModal()">
+    <div class="modal-box">
+        <div class="modal-inner">
+            <div class="modal-head">
+                <div>
+                    <div class="modal-date"    id="modalDate"></div>
+                    <div class="modal-verdict" id="modalVerdict"></div>
+                </div>
+                <button class="modal-close" onclick="closeDayModal()">✕</button>
+            </div>
+            <div class="modal-stats" id="modalStats"></div>
+            <div class="modal-sec">Reflection</div>
+            <div id="modalReflection"></div>
+            <div class="modal-sec">
+                Daily Report
+                <button class="btn btn-ghost" id="modalCopyBtn" onclick="copyModalReport()">Copy for Claude</button>
+            </div>
+            <pre class="modal-report-pre" id="modalReport"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Default schedule ─────────────────────────────────────────────────
+const DEFAULT_SCHEDULE = [
+    { time: '', label: 'Wake up — no phone',           tag: 'block'  },
+    { time: '', label: 'Gym',                          tag: 'health' },
+    { time: '', label: 'Review goals & plan the day',  tag: 'mind'   },
+    { time: '', label: 'Job applications — 5 minimum', tag: 'work'   },
+    { time: '', label: 'Deep Work Block — business',   tag: 'work'   },
+    { time: '', label: 'Admin / emails / calls',       tag: 'work'   },
+    { time: '', label: 'Post 1 reel to Instagram',     tag: 'work'   },
+    { time: '', label: '3 meals today',                tag: 'health' },
+    { time: '', label: 'Walk outside',                 tag: 'health' },
+    { time: '', label: 'Learn something — 30 min',     tag: 'mind'   },
+    { time: '', label: 'Wind down / journal',          tag: 'block'  },
+    { time: '', label: 'Sleep by 10:30pm',             tag: 'block'  },
+];
+
+const NN_ITEMS = [
+    { id: 'wake7',  icon: '⏰', label: 'Wake Before 7am'   },
+    { id: 'gym9',   icon: '🏋️', label: 'Gym Before 9am'    },
+    { id: 'meal',   icon: '🍽️', label: 'Eat a Proper Meal' },
+    { id: 'work1h', icon: '💻', label: '1hr Work Block'     },
+];
+
+// ── today ─────────────────────────────────────────────────────────────
+// Computed once at page load. Day rollover triggers location.reload()
+// so a new page load picks up the new date automatically.
+const today = new Date().toISOString().split('T')[0];
+
+// ── Utilities ─────────────────────────────────────────────────────────
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function timeToMin(t) { const [h,m] = t.split(':').map(Number); return h*60+(m||0); }
+function fmt12(t) {
+    const [h,m] = t.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const dh = h > 12 ? h-12 : h === 0 ? 12 : h;
+    return `${dh}:${(m||0).toString().padStart(2,'0')}<small>${ampm}</small>`;
+}
+function dayQuality(pct) { return pct >= 75 ? 'good' : pct >= 50 ? 'ok' : 'bad'; }
+
+// ── Non-Negotiables ───────────────────────────────────────────────────
+function getNNState() {
+    const s = localStorage.getItem('nn_' + today);
+    if (s) return JSON.parse(s);
+    return Object.fromEntries(NN_ITEMS.map(i => [i.id, false]));
+}
+function saveNNState(state) { localStorage.setItem('nn_' + today, JSON.stringify(state)); }
+
+function toggleNN(id) {
+    const state = getNNState();
+    state[id] = !state[id];
+    saveNNState(state);
+    renderNN();
+}
+
+function renderNN() {
+    const state = getNNState();
+    const grid = document.getElementById('nnGrid');
+    grid.innerHTML = '';
+    NN_ITEMS.forEach(item => {
+        const done = state[item.id];
+        const el = document.createElement('div');
+        el.className = 'nn-item' + (done ? ' nn-done' : '');
+        el.onclick = () => toggleNN(item.id);
+        el.innerHTML = `<div class="nn-ring"></div><div class="nn-icon">${item.icon}</div><div class="nn-label">${item.label}</div>`;
+        grid.appendChild(el);
+    });
+    const doneCount = NN_ITEMS.filter(i => state[i.id]).length;
+    const pct = Math.round(doneCount / NN_ITEMS.length * 100);
+    document.getElementById('nnProgFill').style.width = pct + '%';
+    const el = document.getElementById('statNN');
+    el.textContent = `${doneCount}/${NN_ITEMS.length}`;
+    el.style.color = pct === 0 ? '#f87171' : pct < 100 ? 'var(--yellow)' : 'var(--green)';
+}
+
+// ── Schedule ──────────────────────────────────────────────────────────
+function getSchedule() {
+    const s = localStorage.getItem('sched_' + today);
+    return s ? JSON.parse(s) : DEFAULT_SCHEDULE.map(i => ({ ...i, done: false }));
+}
+function saveSchedule(s) { localStorage.setItem('sched_' + today, JSON.stringify(s)); syncScheduleToCloud(); }
+
+function renderSchedule() {
+    const sched = getSchedule();
+    const list = document.getElementById('schedList');
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    list.innerHTML = '';
+    sched.forEach((item, i) => {
+        const itemMin = timeToMin(item.time);
+        const nextMin = sched[i+1] ? timeToMin(sched[i+1].time) : itemMin + 90;
+        const isCurrent = !item.done && nowMin >= itemMin && nowMin < nextMin;
+        const el = document.createElement('div');
+        el.className = 'sched-item' + (item.done ? ' done' : '') + (isCurrent ? ' current' : '');
+        el.onclick = () => toggleSched(i);
+        el.innerHTML = `
+            <div class="sched-check"></div>
+            ${item.time ? `<span class="sched-time">${fmt12(item.time)}</span>` : ''}
+            <span class="sched-text">${esc(item.label)}</span>
+            ${item.tag ? `<span class="tag tag-${item.tag}">${item.tag}</span>` : ''}
+            ${isCurrent ? '<span class="now-badge">Now</span>' : ''}
+        `;
+        list.appendChild(el);
+    });
+    const done = sched.filter(i => i.done).length;
+    const pct  = Math.round((done / sched.length) * 100);
+    document.getElementById('schedBar').style.width = pct + '%';
+    document.getElementById('schedPct').textContent = pct + '%';
+    document.getElementById('statSched').textContent = pct + '%';
+    updateGlobal();
+}
+
+function toggleSched(i) {
+    const s = getSchedule();
+    s[i].done = !s[i].done;
+    saveSchedule(s);
+    renderSchedule();
+    calcStreak();
+}
+
+// Reset day — saves log first, then clears schedule + NNs
+function resetDay() {
+    if (!confirm('Reset today? Progress will be saved to history first.')) return;
+    saveDayLog(true); // force-save regardless of quality comparison
+    saveSchedule(DEFAULT_SCHEDULE.map(i => ({ ...i, done: false })));
+    saveNNState(Object.fromEntries(NN_ITEMS.map(i => [i.id, false])));
+    renderSchedule();
+    renderNN();
+    renderHistory();
+}
+
+// ── To-Do ─────────────────────────────────────────────────────────────
+function getTodos() { return JSON.parse(localStorage.getItem('todos') || '[]'); }
+function saveTodos(t) { localStorage.setItem('todos', JSON.stringify(t)); syncTodosToCloud(); }
+
+function addTodo() {
+    const input = document.getElementById('todoInput');
+    const text = input.value.trim();
+    const pri  = document.getElementById('priSelect').value;
+    if (!text) return;
+    const todos = getTodos();
+    todos.push({ id: 'todo-' + Date.now(), text, pri, done: false });
+    saveTodos(todos);
+    input.value = '';
+    renderTodos();
+}
+function toggleTodo(id) {
+    const todos = getTodos();
+    const t = todos.find(x => x.id === id);
+    if (t) t.done = !t.done;
+    saveTodos(todos);
+    renderTodos();
+}
+function deleteTodo(id) { saveTodos(getTodos().filter(x => x.id !== id)); renderTodos(); }
+function clearDone()    { saveTodos(getTodos().filter(x => !x.done));    renderTodos(); }
+
+function renderTodos() {
+    const todos = getTodos();
+    const list  = document.getElementById('todoList');
+    list.innerHTML = '';
+    if (!todos.length) {
+        list.innerHTML = '<div class="empty">No tasks yet — add something above</div>';
+    } else {
+        const order = { high: 0, med: 1, low: 2 };
+        [...todos].sort((a,b) => a.done !== b.done ? (a.done?1:-1) : order[a.pri]-order[b.pri])
+        .forEach(t => {
+            const el = document.createElement('div');
+            el.className = 'todo-item' + (t.done ? ' done' : '');
+            el.innerHTML = `
+                <div class="todo-ring" onclick="toggleTodo(${t.id})"></div>
+                <span class="todo-text" onclick="toggleTodo(${t.id})">${esc(t.text)}</span>
+                <span class="pri pri-${t.pri}">${t.pri}</span>
+                <button class="del-btn" onclick="deleteTodo(${t.id})">×</button>
+            `;
+            list.appendChild(el);
+        });
+    }
+    const done = todos.filter(x => x.done).length;
+    const pct  = todos.length ? Math.round((done/todos.length)*100) : 0;
+    document.getElementById('todoBar').style.width  = pct + '%';
+    document.getElementById('todoPct').textContent  = `${done} / ${todos.length}`;
+    document.getElementById('statTodos').textContent = pct + '%';
+    updateGlobal();
+}
+
+// ── Notes & Reflection ────────────────────────────────────────────────
+function autoSave(key, val) { localStorage.setItem(key + '_' + today, val); syncScheduleToCloud(); }
+function loadTextareas() {
+    [['notes','notesArea'],['missed','missedArea'],['why','whyArea'],['change','changeArea']].forEach(([k,id]) => {
+        const v = localStorage.getItem(k + '_' + today);
+        if (v) document.getElementById(id).value = v;
+    });
+}
+
+// ── Day Log ───────────────────────────────────────────────────────────
+// Saves a snapshot of today into history. force=true skips the
+// "only overwrite if better" guard (used by manual reset).
+function saveDayLog(force = false) {
+    const sched    = getSchedule();
+    const todos    = getTodos();
+    const nnState  = getNNState();
+    const schedDone = sched.filter(i => i.done).length;
+    const todoDone  = todos.filter(t => t.done).length;
+    const nnDone    = NN_ITEMS.filter(i => nnState[i.id]).length;
+    const schedPct  = sched.length ? Math.round(schedDone / sched.length * 100) : 0;
+
+    // Don't save blank days
+    if (!force && !schedDone && !todoDone && !nnDone &&
+        !localStorage.getItem('notes_'  + today) &&
+        !localStorage.getItem('missed_' + today)) return;
+
+    // Don't overwrite a better log (unless forced by manual reset)
+    if (!force) {
+        const existing = localStorage.getItem('log_' + today);
+        if (existing) {
+            const prev = JSON.parse(existing);
+            if (prev.schedPct >= schedPct) return;
+        }
+    }
+
+    const log = {
+        date: today, schedDone, schedTotal: sched.length, schedPct,
+        todoDone,  todoTotal: todos.length,
+        todoPct:   todos.length ? Math.round(todoDone / todos.length * 100) : 0,
+        nnDone,    nnTotal: NN_ITEMS.length,
+        notes:  localStorage.getItem('notes_'  + today) || '',
+        missed: localStorage.getItem('missed_' + today) || '',
+        why:    localStorage.getItem('why_'    + today) || '',
+        change: localStorage.getItem('change_' + today) || '',
+        report: localStorage.getItem('report_' + today) || '',
+        savedAt: Date.now(),
+    };
+    localStorage.setItem('log_' + today, JSON.stringify(log));
+
+    const index = JSON.parse(localStorage.getItem('logs_index') || '[]');
+    if (!index.includes(today)) { index.push(today); index.sort(); localStorage.setItem('logs_index', JSON.stringify(index)); }
+}
+
+// Called every 30s and on tab focus. If the date has changed, save and reload.
+function checkDayRollover() {
+    if (new Date().toISOString().split('T')[0] !== today) {
+        saveDayLog();
+        location.reload();
+    }
+}
+
+// ── Report ────────────────────────────────────────────────────────────
+let lastReport = '';
+
+function generateReport() {
+    const sched    = getSchedule();
+    const todos    = getTodos();
+    const nnState  = getNNState();
+    const nnDone   = NN_ITEMS.filter(i => nnState[i.id]);
+    const nnMissed = NN_ITEMS.filter(i => !nnState[i.id]);
+    const notes    = localStorage.getItem('notes_'  + today) || '';
+    const missed   = localStorage.getItem('missed_' + today) || '';
+    const why      = localStorage.getItem('why_'    + today) || '';
+    const change   = localStorage.getItem('change_' + today) || '';
+    const q        = document.getElementById('claudeQ').value.trim();
+    const dateStr  = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+    const schedDone   = sched.filter(i => i.done);
+    const schedMissed = sched.filter(i => !i.done);
+    const todosDone   = todos.filter(t => t.done);
+    const todosPend   = todos.filter(t => !t.done);
+    const sp = sched.length ? Math.round(schedDone.length / sched.length * 100) : 0;
+    const tp = todos.length ? Math.round(todosDone.length / todos.length * 100) : 0;
+
+    lastReport = `## Daily Report — ${dateStr}
+
+### Non-Negotiables (${nnDone.length}/${NN_ITEMS.length})
+${nnDone.length   ? nnDone.map(i   => `  ✓ ${i.label}`).join('\n') : '  (none completed)'}
+${nnMissed.length ? '\nMissed:\n' + nnMissed.map(i => `  ✗ ${i.label}`).join('\n') : '  All completed!'}
+
+### Overview
+- Schedule: ${sp}% complete (${schedDone.length}/${sched.length})
+- To-Dos: ${tp}% complete (${todosDone.length}/${todos.length})
+
+### Schedule — Completed ✓
+${schedDone.length ? schedDone.map(i => `  ✓ [${(i.tag||'').toUpperCase()}] ${i.time} – ${i.label}`).join('\n') : '  (none)'}
+
+### Schedule — Missed ✗
+${schedMissed.length ? schedMissed.map(i => `  ✗ [${(i.tag||'').toUpperCase()}] ${i.time} – ${i.label}`).join('\n') : '  All done!'}
+
+### To-Dos — Done ✓
+${todosDone.length ? todosDone.map(t => `  ✓ [${t.pri.toUpperCase()}] ${t.text}`).join('\n') : '  (none)'}
+
+### To-Dos — Pending
+${todosPend.length ? todosPend.map(t => `  ○ [${t.pri.toUpperCase()}] ${t.text}`).join('\n') : '  All clear!'}
+
+### Notes
+${notes || '(none)'}
+
+### Reflection
+What I missed: ${missed || '(not filled in)'}
+Why: ${why || '(not filled in)'}
+What I'll change: ${change || '(not filled in)'}
+${q ? `\n### My Question for You\n${q}` : ''}`;
+
+    // Persist report so history can include it
+    localStorage.setItem('report_' + today, lastReport);
+    // Update existing log entry's report field if a log already exists
+    const existing = localStorage.getItem('log_' + today);
+    if (existing) {
+        const log = JSON.parse(existing);
+        log.report = lastReport;
+        localStorage.setItem('log_' + today, JSON.stringify(log));
+    }
+
+    const box = document.getElementById('reportBox');
+    const btn = document.getElementById('copyBtn');
+    box.textContent = lastReport;
+    box.style.display = 'block';
+    btn.style.display = 'block';
+    renderHistory(); // today card now shows it has a report
+}
+
+function copyReport() {
+    navigator.clipboard.writeText(lastReport).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '✓ Copied — paste into Claude!';
+        btn.classList.add('ok');
+        setTimeout(() => { btn.textContent = 'Copy to Clipboard'; btn.classList.remove('ok'); }, 2500);
+    });
+}
+
+// ── History ───────────────────────────────────────────────────────────
+let historyView = 'week';
+
+function switchHistory(view, btn) {
+    historyView = view;
+    document.querySelectorAll('.hist-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderHistory();
+}
+
+function renderHistory() {
+    const days = historyView === 'week' ? 7 : 30;
+    const now  = new Date();
+
+    // Build date list (oldest → newest)
+    const dates = Array.from({ length: days }, (_, i) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() - (days - 1 - i));
+        return d.toISOString().split('T')[0];
+    });
+
+    // Resolve each date to a log (today uses live state)
+    const logs = dates.map(date => {
+        if (date === today) {
+            const sched = getSchedule(), todos = getTodos(), nnState = getNNState();
+            const schedDone = sched.filter(i => i.done).length;
+            const todoDone  = todos.filter(t => t.done).length;
+            const nnDone    = NN_ITEMS.filter(i => nnState[i.id]).length;
+            return {
+                date, isToday: true,
+                schedDone, schedTotal: sched.length,
+                schedPct: sched.length ? Math.round(schedDone/sched.length*100) : 0,
+                todoDone, todoTotal: todos.length,
+                nnDone, nnTotal: NN_ITEMS.length,
+                notes:'', missed:'', why:'', change:'', report:'',
+            };
+        }
+        const raw = localStorage.getItem('log_' + date);
+        return raw ? JSON.parse(raw) : null;
+    });
+
+    // Summary line
+    const withData = logs.filter(Boolean);
+    const good = withData.filter(l => l.schedPct >= 75).length;
+    const ok   = withData.filter(l => l.schedPct >= 50 && l.schedPct < 75).length;
+    const bad  = withData.filter(l => l.schedPct  < 50).length;
+    const avg  = withData.length ? Math.round(withData.reduce((s,l)=>s+l.schedPct,0)/withData.length) : 0;
+    document.getElementById('histSummary').innerHTML = withData.length
+        ? `<span style="color:var(--green)">▲ ${good} strong</span> &nbsp;`
+        + `<span style="color:var(--yellow)">● ${ok} ok</span> &nbsp;`
+        + `<span style="color:var(--red)">▼ ${bad} rough</span>`
+        + (withData.length > 1 ? ` &nbsp;·&nbsp; avg <strong style="color:var(--text)">${avg}%</strong>` : '')
+        : '<span style="color:var(--text-muted)">No history yet — data appears here after your first day.</span>';
+
+    // Gym summary for month view
+    const gymDays = getGymDays();
+    const gymSummaryEl = document.getElementById('histGymSummary');
+    if (historyView === 'month') {
+        const now2 = new Date();
+        let gymDone = 0, gymTotal = 0;
+        for (let day = 1; day <= now2.getDate(); day++) {
+            const d = new Date(now2.getFullYear(), now2.getMonth(), day);
+            gymTotal++;
+            if (gymDays[d.toISOString().split('T')[0]]) gymDone++;
+        }
+        const gPct = gymTotal ? Math.round((gymDone / gymTotal) * 100) : 0;
+        gymSummaryEl.innerHTML = `
+            <div style="margin-bottom:14px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,204,0,0.65);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;">
+                    <span>🏋️ Gym this month</span>
+                    <span>${gymDone} / ${gymTotal} days &nbsp;(${gPct}%)</span>
+                </div>
+                <div style="height:4px;background:rgba(255,204,0,0.12);border-radius:2px;overflow:hidden;">
+                    <div style="height:100%;width:${gPct}%;background:#ffcc00;border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1);"></div>
+                </div>
+            </div>`;
+    } else {
+        gymSummaryEl.innerHTML = '';
+    }
+
+    // Build grid
+    const grid = document.getElementById('histGrid');
+    grid.innerHTML = '';
+
+    // Month view: add DOW headers + alignment padding (Sun-start)
+    if (historyView === 'month') {
+        ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+            const h = document.createElement('div');
+            h.className = 'hist-dow';
+            h.textContent = d;
+            grid.appendChild(h);
+        });
+        const firstDow = new Date(dates[0] + 'T12:00:00').getDay(); // Sun=0
+        for (let i = 0; i < firstDow; i++) grid.appendChild(document.createElement('div'));
+    }
+
+    dates.forEach((date, idx) => {
+        const log     = logs[idx];
+        const gymDone = !!gymDays[date];
+        const d       = new Date(date + 'T12:00:00');
+        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayNum  = d.getDate();
+        const mon     = d.toLocaleDateString('en-US', { month: 'short' });
+        const gymDot  = `<div class="dc-gym${gymDone ? ' gym-yes' : ' gym-no'}" title="${gymDone ? '🏋️ Gym done' : 'No gym'}"></div>`;
+
+        const card = document.createElement('div');
+
+        if (!log) {
+            card.className = 'day-card day-empty';
+            card.innerHTML = `<div class="dc-day">${dayName}</div><div class="dc-num">${dayNum} <span class="dc-mon">${mon}</span></div>${gymDot}`;
+        } else {
+            const q = dayQuality(log.schedPct);
+            card.className = `day-card has-data day-${q}${log.isToday ? ' day-today' : ''}`;
+            card.onclick   = () => openDayModal(log);
+
+            const dots = Array.from({ length: log.nnTotal || 4 }, (_, i) =>
+                `<div class="nn-dot${i < (log.nnDone||0) ? ' on' : ''}"></div>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="dc-day">${dayName}</div>
+                <div class="dc-num">${dayNum} <span class="dc-mon">${mon}</span></div>
+                ${log.isToday ? '<div class="dc-live">Live</div>' : ''}
+                <div class="dc-pct ${q}">${log.schedPct}%</div>
+                <div class="dc-nn">${dots}</div>
+                <div class="dc-sub">${log.todoDone||0}/${log.todoTotal||0} todos</div>
+                ${gymDot}
+            `;
+        }
+        grid.appendChild(card);
+    });
+}
+
+// ── Day Modal ─────────────────────────────────────────────────────────
+function openDayModal(log) {
+    const d       = new Date(log.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    const verdict = log.schedPct >= 75 ? 'Strong Day' : log.schedPct >= 50 ? 'Average Day' : 'Rough Day';
+    const vColor  = log.schedPct >= 75 ? 'var(--green)' : log.schedPct >= 50 ? 'var(--yellow)' : 'var(--red)';
+
+    document.getElementById('modalDate').textContent    = dateStr + (log.isToday ? ' (Today)' : '');
+    document.getElementById('modalVerdict').textContent = verdict;
+    document.getElementById('modalVerdict').style.color = vColor;
+    document.getElementById('modalStats').innerHTML = `
+        <div class="modal-stat">Schedule <strong>${log.schedPct}%</strong> (${log.schedDone}/${log.schedTotal})</div>
+        <div class="modal-stat">Non-Negotiables <strong>${log.nnDone}/${log.nnTotal}</strong></div>
+        <div class="modal-stat">To-Dos <strong>${log.todoDone}/${log.todoTotal}</strong></div>
+    `;
+
+    const ref = document.getElementById('modalReflection');
+    ref.innerHTML = '';
+    if (log.missed || log.why || log.change || log.notes) {
+        if (log.missed) ref.innerHTML += `<div class="modal-field-label">What I missed</div><div class="modal-field-text">${esc(log.missed)}</div>`;
+        if (log.why)    ref.innerHTML += `<div class="modal-field-label">Why</div><div class="modal-field-text">${esc(log.why)}</div>`;
+        if (log.change) ref.innerHTML += `<div class="modal-field-label">Change tomorrow</div><div class="modal-field-text">${esc(log.change)}</div>`;
+        if (log.notes)  ref.innerHTML += `<div class="modal-field-label">Notes</div><div class="modal-field-text">${esc(log.notes)}</div>`;
+    } else {
+        ref.innerHTML = '<div class="modal-field-text" style="color:var(--text-muted)">(No reflection recorded for this day)</div>';
+    }
+
+    document.getElementById('modalReport').textContent = log.report ||
+        '(No report saved for this day.\nGenerate one via the Claude Report tab while the day is active.)';
+
+    document.getElementById('dayModal').classList.add('open');
+}
+function closeDayModal() { document.getElementById('dayModal').classList.remove('open'); }
+function copyModalReport() {
+    const text = document.getElementById('modalReport').textContent;
+    if (text.startsWith('(')) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('modalCopyBtn');
+        btn.textContent = '✓ Copied';
+        setTimeout(() => btn.textContent = 'Copy for Claude', 2000);
+    });
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────
+function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Motivational quote ────────────────────────────────────────────────
+function setMotd() {
+    const quotes = [
+        "No one is coming to save you.",
+        "Every day you delay is a day you'll regret.",
+        "Comfort is the enemy of progress.",
+        "You are not behind. You are exactly where your choices put you.",
+        "The version of you that succeeds is already doing this.",
+        "Your excuses are available to everyone. Your results aren't.",
+        "Your future self is watching. Don't embarrass him.",
+        "The gap between who you are and who you want to be is called action.",
+        "The hard path and the right path are usually the same path.",
+    ];
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const idx   = Math.floor((Date.now() - start) / 86400000) % quotes.length;
+    const el    = document.getElementById('motd');
+    el.textContent = quotes[idx];
+    el.className   = 'motd' + (idx === 3 ? ' motd-red' : idx === 4 ? ' motd-green' : '');
+}
+
+// ── Clock & greeting ──────────────────────────────────────────────────
+function tick() {
+    const now = new Date();
+    const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const dh   = h > 12 ? h-12 : h === 0 ? 12 : h;
+    document.getElementById('clock').textContent =
+        `${dh}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} ${ampm}`;
+}
+function updateGreeting() {
+    const h = new Date().getHours();
+    document.getElementById('greeting').textContent =
+        h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+}
+function updateGlobal() {
+    const sched = getSchedule(), todos = getTodos();
+    const total = sched.length + todos.length;
+    const done  = sched.filter(i => i.done).length + todos.filter(t => t.done).length;
+    document.getElementById('overallProg').textContent = `${done} of ${total} done`;
+}
+
+// ── Streak ────────────────────────────────────────────────────────────
+function calcStreak() {
+    let streak = 0;
+    for (let i = 0; i < 365; i++) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const key = d.toISOString().split('T')[0];
+        const raw = localStorage.getItem('sched_' + key);
+        if (!raw) { if (i === 0) continue; break; }
+        const items = JSON.parse(raw);
+        const pct = items.filter(x => x.done).length / items.length;
+        if (pct >= 0.5) streak++;
+        else if (i > 0) break;
+    }
+    document.getElementById('statStreak').textContent = streak;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SUPABASE SYNC LAYER
+//
+// Run this SQL in your Supabase dashboard → SQL Editor before use:
+//
+//   create table daily_schedule (
+//     date text primary key,
+//     completed_tasks jsonb,
+//     notes text, missed text, why_text text, change_text text
+//   );
+//   create table gym_days (date text primary key, completed boolean default false);
+//   create table monthly_goals (month text primary key, goals jsonb);
+//   create table todos (
+//     id text primary key,
+//     text text, done boolean default false,
+//     priority text default 'med',
+//     created_at timestamptz default now()
+//   );
+//   create table earnings (id text primary key, amount numeric default 0, milestones jsonb);
+//
+//   -- Allow anon access (personal dashboard, no auth):
+//   do $$ declare t text;
+//   begin for t in select unnest(array['daily_schedule','gym_days','monthly_goals','todos','earnings'])
+//   loop execute format('alter table %I enable row level security', t);
+//         execute format('create policy anon_all on %I for all to anon using (true) with check (true)', t);
+//   end loop; end $$;
+// ════════════════════════════════════════════════════════════════════
+
+const SUPA_URL = 'https://mcdvwvkaqjuhobpvmngw.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZHZ3dmthcWp1aG9icHZtbmd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMzgzNjcsImV4cCI6MjA5NjkxNDM2N30.SI4x75HFW8CQXxtQBxSz-AEh9NOTZahqR09hRFaz4mA';
+let sb = null;
+let cloudOnline = false;
+
+function setSyncStatus(state) {
+    const dot   = document.getElementById('syncDot');
+    const label = document.getElementById('syncLabel');
+    const chip  = document.getElementById('syncChip');
+    if (!dot) return;
+    if (state === 'green') {
+        dot.style.background  = '#4ade80';
+        dot.style.boxShadow   = '0 0 7px #4ade80';
+        if (label) label.textContent = 'Synced';
+        if (chip)  chip.title        = 'Synced to cloud';
+    } else {
+        dot.style.background  = '#fbbf24';
+        dot.style.boxShadow   = '0 0 7px #fbbf24';
+        if (label) label.textContent = 'Offline';
+        if (chip)  chip.title        = 'Offline — using local storage';
+    }
+}
+function goOffline() { cloudOnline = false; setSyncStatus('yellow'); }
+
+async function initSupabase() {
+    if (!window.supabase) { goOffline(); return; }
+    try {
+        sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+        const { error } = await sb.from('daily_schedule').select('date').limit(1);
+        if (error) throw error;
+        cloudOnline = true;
+        setSyncStatus('green');
+        await loadFromCloud();
+        await migrateLocalToCloud();
+    } catch (e) {
+        console.warn('Supabase offline:', e?.message || e);
+        goOffline();
+    }
+}
+
+// ── Load from cloud ──────────────────────────────────────────────────
+async function loadFromCloud() {
+    if (!cloudOnline || !sb) return;
+    await Promise.allSettled([
+        (async () => {
+            const { data } = await sb.from('daily_schedule').select('*').eq('date', today).maybeSingle();
+            if (!data) return;
+            if (data.completed_tasks) localStorage.setItem('sched_'  + today, JSON.stringify(data.completed_tasks));
+            if (data.notes)       localStorage.setItem('notes_'  + today, data.notes);
+            if (data.missed)      localStorage.setItem('missed_' + today, data.missed);
+            if (data.why_text)    localStorage.setItem('why_'    + today, data.why_text);
+            if (data.change_text) localStorage.setItem('change_' + today, data.change_text);
+        })(),
+        (async () => {
+            const { data } = await sb.from('todos').select('*').order('created_at');
+            if (!data?.length) return;
+            const todos = data.map(t => ({ id: t.id, text: t.text, done: t.done, pri: t.priority || 'med' }));
+            localStorage.setItem('todos', JSON.stringify(todos));
+        })(),
+        (async () => {
+            const { data } = await sb.from('gym_days').select('*');
+            if (!data?.length) return;
+            const existing = getGymDays();
+            data.forEach(r => { existing[r.date] = r.completed; });
+            localStorage.setItem('gym_days', JSON.stringify(existing));
+        })(),
+        (async () => {
+            const mk = getMonthKey();
+            const { data } = await sb.from('monthly_goals').select('*').eq('month', mk).maybeSingle();
+            if (!data?.goals?.states) return;
+            localStorage.setItem('monthly_goals', JSON.stringify({ month: mk, states: data.goals.states }));
+        })(),
+        (async () => {
+            const { data } = await sb.from('earnings').select('*').eq('id', 'main').maybeSingle();
+            if (!data) return;
+            const kd = getKillData(); kd.earned = data.amount || 0;
+            if (data.milestones?.kill) kd.milestones = data.milestones.kill;
+            localStorage.setItem('kill_data', JSON.stringify(kd));
+            const dd = getDlbData(); dd.earned = data.amount || 0;
+            if (data.milestones?.dlb) dd.milestones = data.milestones.dlb;
+            localStorage.setItem('dlb_data', JSON.stringify(dd));
+        })(),
+    ]);
+    // Re-render everything with freshly loaded cloud data
+    renderSchedule(); renderTodos(); renderGymBanner(); renderMonthlyGoals();
+    renderNN(); renderKill(); initKillEarnedInput();
+    updateDeadlineBanner(); loadTextareas(); calcStreak(); updateGlobal();
+    renderHistory();
+}
+
+// ── Migrate localStorage → cloud (first run) ─────────────────────────
+async function migrateLocalToCloud() {
+    // Normalise existing numeric todo IDs to string format
+    const todos = getTodos();
+    if (todos.some(t => typeof t.id === 'number')) {
+        const fixed = todos.map(t => ({ ...t, id: typeof t.id === 'number' ? 'todo-' + t.id : t.id }));
+        localStorage.setItem('todos', JSON.stringify(fixed));
+        renderTodos();
+    }
+    // Push local data up (upsert is idempotent — safe to call every time)
+    await Promise.allSettled([
+        syncScheduleToCloud(),
+        syncTodosToCloud(),
+        syncGymToCloud(),
+        syncGoalsToCloud(),
+        syncEarningsToCloud(),
+    ]);
+}
+
+// ── Sync helpers ──────────────────────────────────────────────────────
+async function syncScheduleToCloud() {
+    if (!cloudOnline || !sb) return;
+    try {
+        await sb.from('daily_schedule').upsert({
+            date:            today,
+            completed_tasks: getSchedule(),
+            notes:           localStorage.getItem('notes_'  + today) || '',
+            missed:          localStorage.getItem('missed_' + today) || '',
+            why_text:        localStorage.getItem('why_'    + today) || '',
+            change_text:     localStorage.getItem('change_' + today) || '',
+        });
+    } catch { goOffline(); }
+}
+
+async function syncTodosToCloud() {
+    if (!cloudOnline || !sb) return;
+    try {
+        const todos = getTodos();
+        // Upsert all local todos
+        if (todos.length) {
+            await sb.from('todos').upsert(
+                todos.map(t => ({ id: String(t.id), text: t.text, done: t.done, priority: t.pri || 'med' })),
+                { onConflict: 'id' }
+            );
+        }
+        // Remove cloud todos that no longer exist locally
+        const { data: cloudRows } = await sb.from('todos').select('id');
+        const localIds = new Set(todos.map(t => String(t.id)));
+        const orphans  = (cloudRows || []).map(r => r.id).filter(id => !localIds.has(id));
+        if (orphans.length) await sb.from('todos').delete().in('id', orphans);
+    } catch { goOffline(); }
+}
+
+async function syncGymToCloud() {
+    if (!cloudOnline || !sb) return;
+    try {
+        const days = getGymDays();
+        const rows = Object.entries(days).map(([date, completed]) => ({ date, completed: !!completed }));
+        if (rows.length) await sb.from('gym_days').upsert(rows, { onConflict: 'date' });
+    } catch { goOffline(); }
+}
+
+async function syncGoalsToCloud() {
+    if (!cloudOnline || !sb) return;
+    try {
+        const data = getMonthlyGoals();
+        await sb.from('monthly_goals').upsert({ month: data.month, goals: { states: data.states } }, { onConflict: 'month' });
+    } catch { goOffline(); }
+}
+
+async function syncEarningsToCloud() {
+    if (!cloudOnline || !sb) return;
+    try {
+        const kd = getKillData(), dd = getDlbData();
+        await sb.from('earnings').upsert({
+            id:         'main',
+            amount:     Math.max(kd.earned || 0, dd.earned || 0),
+            milestones: { kill: kd.milestones, dlb: dd.milestones },
+        }, { onConflict: 'id' });
+    } catch { goOffline(); }
+}
+
+// ── Monthly Goals ─────────────────────────────────────────────────────
+const MONTHLY_GOALS = [
+    'Get in better shape',
+    'Grow the new Instagram account',
+    'Post 1 reel every single day',
+    'Grow my bank account — $10k by end of month',
+];
+
+function getMonthKey() {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+}
+function getMonthlyGoals() {
+    const raw = localStorage.getItem('monthly_goals');
+    const mk  = getMonthKey();
+    if (raw) {
+        const data = JSON.parse(raw);
+        if (data.month === mk) return data;
+    }
+    // New month — start fresh
+    return { month: mk, states: Array(MONTHLY_GOALS.length).fill(false) };
+}
+function saveMonthlyGoals(data) { localStorage.setItem('monthly_goals', JSON.stringify(data)); syncGoalsToCloud(); }
+
+function toggleMonthlyGoal(idx) {
+    const data = getMonthlyGoals();
+    data.states[idx] = !data.states[idx];
+    saveMonthlyGoals(data);
+    renderMonthlyGoals();
+}
+
+function renderMonthlyGoals() {
+    const data      = getMonthlyGoals();
+    const container = document.getElementById('monthlyGoalsList');
+    if (!container) return;
+    container.innerHTML = '';
+    MONTHLY_GOALS.forEach((label, i) => {
+        const el = document.createElement('div');
+        el.className = 'goal-item' + (data.states[i] ? ' goal-done' : '');
+        el.onclick   = () => toggleMonthlyGoal(i);
+        el.innerHTML = `<div class="goal-ring"></div><span class="goal-label">${esc(label)}</span>`;
+        container.appendChild(el);
+    });
+}
+
+// ── Gym Banner ───────────────────────────────────────────────────────
+function getGymDays() { return JSON.parse(localStorage.getItem('gym_days') || '{}'); }
+function saveGymDays(d) { localStorage.setItem('gym_days', JSON.stringify(d)); syncGymToCloud(); }
+
+function getWeekDates() {
+    const now = new Date();
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - now.getDay()); // back to Sunday
+    sunday.setHours(0, 0, 0, 0);
+    return Array.from({length: 7}, (_, i) => {
+        const d = new Date(sunday);
+        d.setDate(sunday.getDate() + i);
+        return d.toISOString().split('T')[0];
+    });
+}
+
+function calcGymStreak() {
+    const days = getGymDays();
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    // If today not logged, start counting from yesterday
+    if (!days[d.toISOString().split('T')[0]]) d.setDate(d.getDate() - 1);
+    let streak = 0;
+    for (let i = 0; i < 365; i++) {
+        if (days[d.toISOString().split('T')[0]]) { streak++; d.setDate(d.getDate() - 1); }
+        else break;
+    }
+    return streak;
+}
+
+function toggleGymDay(dateKey) {
+    const days = getGymDays();
+    days[dateKey] = !days[dateKey]; // store false explicitly so cloud sync can clear it
+    saveGymDays(days);
+    renderGymBanner();
+}
+
+function renderGymBanner() {
+    const days     = getGymDays();
+    const week     = getWeekDates();
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    let weekDone = 0;
+
+    // Streak
+    document.getElementById('gymStreakNum').textContent = calcGymStreak();
+
+    // Circles
+    const container = document.getElementById('gymCircles');
+    container.innerHTML = '';
+    week.forEach((dateKey, i) => {
+        const isDone   = !!days[dateKey];
+        const isToday  = dateKey === today;
+        const isFuture = dateKey > today;
+        if (isDone) weekDone++;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'gym-circle-wrap' + (isToday ? ' gym-today-wrap' : '');
+
+        const circle = document.createElement('div');
+        let cls = 'gym-circle';
+        if (isDone)   cls += ' gym-done';
+        if (isToday)  cls += ' gym-today';
+        if (isFuture) cls += ' gym-future';
+        circle.className   = cls;
+        circle.textContent = isDone ? '✓' : '';
+        if (!isFuture) circle.onclick = () => toggleGymDay(dateKey);
+
+        const label = document.createElement('div');
+        label.className   = 'gym-day-label';
+        label.textContent = dayNames[i];
+
+        wrap.appendChild(circle);
+        wrap.appendChild(label);
+        container.appendChild(wrap);
+    });
+
+    // Progress
+    const pct = Math.round((weekDone / 7) * 100);
+    document.getElementById('gymProgFill').style.width = pct + '%';
+    document.getElementById('gymProgLabel').textContent = `This week — ${weekDone} / 7 days`;
+}
+
+// ── Deadline Banner ──────────────────────────────────────────────────
+const DLB_MILESTONES = [
+    'First $100 earned',
+    'First $250 earned',
+    '$500 reached',
+    '$750 reached',
+    '$1,000 — halfway there',
+    '$1,500 reached',
+    '$2,000 — DONE. Paid back.',
+];
+
+function getDlbData() {
+    const raw = localStorage.getItem('dlb_data');
+    return raw ? JSON.parse(raw) : { earned: 0, milestones: Array(7).fill(false) };
+}
+function saveDlbData(d) { localStorage.setItem('dlb_data', JSON.stringify(d)); syncEarningsToCloud(); }
+
+function toggleDlbMilestone(idx) {
+    const data = getDlbData();
+    data.milestones[idx] = !data.milestones[idx];
+    saveDlbData(data);
+    renderDlbMilestones(data);
+}
+
+function renderDlbMilestones(data) {
+    const container = document.getElementById('dlbMilestones');
+    container.innerHTML = '';
+    DLB_MILESTONES.forEach((label, i) => {
+        const el = document.createElement('div');
+        el.className = 'dlb-ms-item' + (data.milestones[i] ? ' ms-done' : '');
+        el.onclick = () => toggleDlbMilestone(i);
+        el.innerHTML = `<div class="dlb-ms-ring"></div><span class="dlb-ms-label">${esc(label)}</span>`;
+        container.appendChild(el);
+    });
+}
+
+function renderDlbProgress(data) {
+    const pct   = Math.min(100, Math.round((data.earned / 2000) * 100));
+    const color = pct >= 80 ? '#4ade80' : pct >= 50 ? '#fbbf24' : pct >= 25 ? '#f97316' : '#ff4444';
+    document.getElementById('dlbProgFill').style.width = pct + '%';
+    document.getElementById('dlbProgFill').style.backgroundColor = color;
+    const display = data.earned % 1 === 0 ? data.earned : data.earned.toFixed(2);
+    document.getElementById('dlbCurrentText').textContent = `$${display} / $2,000`;
+}
+
+function updateDlbEarned(val) {
+    const data = getDlbData();
+    data.earned = Math.max(0, parseFloat(val) || 0);
+    saveDlbData(data);
+    renderDlbProgress(data);
+}
+
+function updateDeadlineBanner() {
+    const daysLeft = Math.max(0, Math.ceil((new Date(2026, 6, 1) - new Date()) / 86400000));
+    document.getElementById('deadlineDays').textContent = daysLeft;
+    const data = getDlbData();
+    renderDlbMilestones(data);
+    renderDlbProgress(data);
+    if (data.earned > 0) document.getElementById('dlbEarnedInput').value = data.earned;
+}
+
+// ── Kill List ─────────────────────────────────────────────────────────
+const KILL_MILESTONES = [
+    'First $1 earned',
+    '$100 milestone',
+    '$250 milestone',
+    '$500 halfway',
+    '$1,000 — DONE 🏆',
+];
+
+const KILL_DEADLINE = new Date(2026, 6, 7); // July 7 2026 — local time
+function getKillData() {
+    const raw = localStorage.getItem('kill_data');
+    return raw ? JSON.parse(raw) : { earned: 0, milestones: [false,false,false,false,false] };
+}
+function saveKillData(data) { localStorage.setItem('kill_data', JSON.stringify(data)); syncEarningsToCloud(); }
+
+function updateKillEarned(val) {
+    const data = getKillData();
+    data.earned = Math.max(0, Math.min(9999, parseFloat(val) || 0));
+    saveKillData(data);
+    renderKill();
+}
+
+function toggleKillMilestone(idx) {
+    const data = getKillData();
+    data.milestones[idx] = !data.milestones[idx];
+    saveKillData(data);
+    renderKillMilestones(data);
+}
+
+function renderKillMilestones(data) {
+    const container = document.getElementById('killMilestones');
+    container.innerHTML = '';
+    KILL_MILESTONES.forEach((label, i) => {
+        const el = document.createElement('div');
+        el.className = 'kill-milestone' + (data.milestones[i] ? ' ms-done' : '');
+        el.onclick = () => toggleKillMilestone(i);
+        el.innerHTML = `<div class="ms-ring"></div><span class="ms-label">${esc(label)}</span>`;
+        container.appendChild(el);
+    });
+}
+
+function renderKill() {
+    const data     = getKillData();
+    const deadline = KILL_DEADLINE.toISOString().split('T')[0];
+    const earned   = data.earned;
+    const pct      = Math.min(100, Math.round((earned / 1000) * 100));
+
+    // Progress
+    document.getElementById('killProgFill').style.width = pct + '%';
+    document.getElementById('killPctLabel').textContent =
+        `$${earned % 1 === 0 ? earned : earned.toFixed(2)} earned — ${pct}%`;
+
+    // Countdown
+    const deadDate = new Date(deadline + 'T23:59:59');
+    const msLeft   = deadDate - Date.now();
+    const daysLeft = Math.max(0, Math.ceil(msLeft / 86400000));
+    const weeks    = Math.floor(daysLeft / 7);
+    const days     = daysLeft % 7;
+    const countColor = daysLeft >= 7 ? 'var(--green)' : daysLeft >= 3 ? 'var(--yellow)' : 'var(--red)';
+
+    document.getElementById('killWeeks').textContent  = weeks;
+    document.getElementById('killDays').textContent   = days;
+    document.getElementById('killWeeks').style.color  = countColor;
+    document.getElementById('killDays').style.color   = countColor;
+    document.getElementById('killDeadlineDate').textContent =
+        'Deadline: ' + new Date(deadline + 'T12:00:00').toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+        });
+
+    // Status badge
+    const badge = document.getElementById('killStatus');
+    if (earned >= 1000) {
+        badge.textContent = '✅ MISSION COMPLETE';
+        badge.style.cssText = 'background:rgba(74,222,128,.15);color:var(--green);border:1px solid rgba(74,222,128,.3);';
+    } else if (daysLeft === 0) {
+        badge.textContent = '⚠️ TIME UP';
+        badge.style.cssText = 'background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);';
+    } else {
+        badge.textContent = `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
+        const alpha = daysLeft >= 7 ? '74,222,128' : daysLeft >= 3 ? '251,191,36' : '248,113,113';
+        badge.style.cssText = `background:rgba(${alpha},.12);color:${countColor};border:1px solid rgba(${alpha},.28);`;
+    }
+
+    renderKillMilestones(data);
+}
+
+function initKillEarnedInput() {
+    const { earned } = getKillData();
+    if (earned > 0) document.getElementById('killEarnedInput').value = earned;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+updateGreeting();
+setMotd();
+tick();
+updateDeadlineBanner();
+renderGymBanner();
+renderMonthlyGoals();
+renderKill();
+initKillEarnedInput();
+renderSchedule();
+renderTodos();
+renderNN();
+renderHistory();
+loadTextareas();
+calcStreak();
+updateGlobal();
+
+// Supabase: connect in background — app already running on localStorage
+initSupabase();
+
+setInterval(tick, 1000);
+setInterval(renderSchedule, 60000);
+setInterval(renderHistory, 60000);
+// Check for day rollover every 30s and when the tab regains focus
+setInterval(checkDayRollover, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
+// Save on page unload so closing the tab doesn't lose the day
+window.addEventListener('beforeunload', () => saveDayLog());
+</script>
+</body>
+</html>
