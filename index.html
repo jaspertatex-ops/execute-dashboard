@@ -1749,18 +1749,90 @@ function setSyncStatus(state) {
 }
 function goOffline() { cloudOnline = false; setSyncStatus('yellow'); }
 
+// ── Low-level helpers ───────────────────────────────────────────────
+// Every read/write goes through one of these so success/failure is always
+// logged and a single bad table/column can't take the whole sync layer
+// offline (only real connectivity failures call goOffline()).
+async function sbSelect(table, builderFn, label) {
+    if (!cloudOnline || !sb) return null;
+    try {
+        const { data, error } = await builderFn(sb.from(table));
+        if (error) {
+            if (error.code === 'PGRST205') {
+                console.warn(`[Supabase] Table '${table}' doesn't exist yet — run the CREATE TABLE statement from the migration SQL above.`);
+            }
+            console.error(`[Supabase] READ ${table} (${label}) failed:`, error.message, error);
+            return null;
+        }
+        console.log(`[Supabase] READ ${table} (${label}) ok —`, Array.isArray(data) ? `${data.length} row(s)` : (data ? '1 row' : '0 rows'));
+        return data;
+    } catch (e) {
+        console.error(`[Supabase] READ ${table} (${label}) network error:`, e);
+        goOffline();
+        return null;
+    }
+}
+
+async function sbUpsert(table, payload, opts, label) {
+    if (!cloudOnline || !sb) { console.warn(`[Supabase] WRITE ${table} (${label}) skipped — offline`); return false; }
+    try {
+        let { error } = await sb.from(table).upsert(payload, opts);
+        if (error && error.code === 'PGRST204') {
+            const m = /'([^']+)' column/.exec(error.message || '');
+            const badCol = m && m[1];
+            if (badCol) {
+                console.warn(`[Supabase] ${table}.${badCol} column missing on this project — run the migration SQL above. Retrying ${label} without it.`);
+                const strip = row => { const c = { ...row }; delete c[badCol]; return c; };
+                const retryPayload = Array.isArray(payload) ? payload.map(strip) : strip(payload);
+                ({ error } = await sb.from(table).upsert(retryPayload, opts));
+            }
+        }
+        if (error) {
+            if (error.code === 'PGRST205') {
+                console.warn(`[Supabase] Table '${table}' doesn't exist yet — run the CREATE TABLE statement from the migration SQL above.`);
+            }
+            console.error(`[Supabase] WRITE ${table} (${label}) failed:`, error.message, error);
+            return false;
+        }
+        console.log(`[Supabase] WRITE ${table} (${label}) ok`);
+        return true;
+    } catch (e) {
+        console.error(`[Supabase] WRITE ${table} (${label}) network error:`, e);
+        goOffline();
+        return false;
+    }
+}
+
+async function sbDelete(table, builderFn, label) {
+    if (!cloudOnline || !sb) return false;
+    try {
+        const { error } = await builderFn(sb.from(table).delete());
+        if (error) {
+            console.error(`[Supabase] DELETE ${table} (${label}) failed:`, error.message, error);
+            return false;
+        }
+        console.log(`[Supabase] DELETE ${table} (${label}) ok`);
+        return true;
+    } catch (e) {
+        console.error(`[Supabase] DELETE ${table} (${label}) network error:`, e);
+        goOffline();
+        return false;
+    }
+}
+
 async function initSupabase() {
-    if (!window.supabase) { goOffline(); return; }
+    if (!window.supabase) { console.warn('[Supabase] SDK not loaded — using localStorage only.'); goOffline(); return; }
     try {
         sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
         const { error } = await sb.from('daily_schedule').select('date').limit(1);
         if (error) throw error;
         cloudOnline = true;
         setSyncStatus('green');
+        console.log('[Supabase] connected:', SUPA_URL);
         await loadFromCloud();
         await migrateLocalToCloud();
     } catch (e) {
-        console.warn('Supabase offline:', e?.message || e);
+        console.error('[Supabase] connection failed, using localStorage only:', e?.message || e);
         goOffline();
     }
 }
@@ -1770,7 +1842,7 @@ async function loadFromCloud() {
     if (!cloudOnline || !sb) return;
     await Promise.allSettled([
         (async () => {
-            const { data } = await sb.from('daily_schedule').select('*').eq('date', today).maybeSingle();
+            const data = await sbSelect('daily_schedule', q => q.select('*').eq('date', today).maybeSingle(), 'today schedule');
             if (!data) return;
             if (data.completed_tasks) localStorage.setItem('sched_'  + today, JSON.stringify(data.completed_tasks));
             if (data.nn_state)    localStorage.setItem('nn_'    + today, JSON.stringify(data.nn_state));
@@ -1780,7 +1852,7 @@ async function loadFromCloud() {
             if (data.change_text) localStorage.setItem('change_' + today, data.change_text);
         })(),
         (async () => {
-            const { data } = await sb.from('daily_logs').select('*');
+            const data = await sbSelect('daily_logs', q => q.select('*'), 'history');
             if (!data?.length) return;
             const index = JSON.parse(localStorage.getItem('logs_index') || '[]');
             data.forEach(row => {
@@ -1792,13 +1864,13 @@ async function loadFromCloud() {
             localStorage.setItem('logs_index', JSON.stringify(index));
         })(),
         (async () => {
-            const { data } = await sb.from('todos').select('*').order('created_at');
+            const data = await sbSelect('todos', q => q.select('*').order('created_at'), 'todos');
             if (!data?.length) return;
             const todos = data.map(t => ({ id: t.id, text: t.text, done: t.done, pri: t.priority || 'med' }));
             localStorage.setItem('todos', JSON.stringify(todos));
         })(),
         (async () => {
-            const { data } = await sb.from('gym_days').select('*');
+            const data = await sbSelect('gym_days', q => q.select('*'), 'gym days');
             if (!data?.length) return;
             const existing = getGymDays();
             data.forEach(r => { existing[r.date] = r.completed; });
@@ -1806,12 +1878,12 @@ async function loadFromCloud() {
         })(),
         (async () => {
             const mk = getMonthKey();
-            const { data } = await sb.from('monthly_goals').select('*').eq('month', mk).maybeSingle();
+            const data = await sbSelect('monthly_goals', q => q.select('*').eq('month', mk).maybeSingle(), 'monthly goals');
             if (!data?.goals?.states) return;
             localStorage.setItem('monthly_goals', JSON.stringify({ month: mk, states: data.goals.states }));
         })(),
         (async () => {
-            const { data } = await sb.from('earnings').select('*').eq('id', 'main').maybeSingle();
+            const data = await sbSelect('earnings', q => q.select('*').eq('id', 'main').maybeSingle(), 'earnings');
             if (!data) return;
             const kd = getKillData(); kd.earned = data.amount || 0;
             if (data.milestones?.kill) kd.milestones = data.milestones.kill;
@@ -1821,6 +1893,7 @@ async function loadFromCloud() {
             localStorage.setItem('dlb_data', JSON.stringify(dd));
         })(),
     ]);
+    console.log('[Supabase] loadFromCloud complete — re-rendering UI from cloud data');
     // Re-render everything with freshly loaded cloud data
     renderSchedule(); renderTodos(); renderGymBanner(); renderMonthlyGoals();
     renderNN(); renderKill(); initKillEarnedInput();
@@ -1848,76 +1921,66 @@ async function migrateLocalToCloud() {
 }
 
 // ── Sync helpers ──────────────────────────────────────────────────────
+// Every state change calls one of these immediately. They write straight to
+// Supabase (cloud-first); localStorage is only ever the fallback if
+// cloudOnline is false.
 async function syncScheduleToCloud() {
-    if (!cloudOnline || !sb) return;
-    try {
-        await sb.from('daily_schedule').upsert({
-            date:            today,
-            completed_tasks: getSchedule(),
-            nn_state:        getNNState(),
-            notes:           localStorage.getItem('notes_'  + today) || '',
-            missed:          localStorage.getItem('missed_' + today) || '',
-            why_text:        localStorage.getItem('why_'    + today) || '',
-            change_text:     localStorage.getItem('change_' + today) || '',
-        });
-    } catch { goOffline(); }
+    return sbUpsert('daily_schedule', {
+        date:            today,
+        completed_tasks: getSchedule(),
+        nn_state:        getNNState(),
+        notes:           localStorage.getItem('notes_'  + today) || '',
+        missed:          localStorage.getItem('missed_' + today) || '',
+        why_text:        localStorage.getItem('why_'    + today) || '',
+        change_text:     localStorage.getItem('change_' + today) || '',
+    }, { onConflict: 'date' }, 'today schedule');
 }
 
 // Pushes a finished day's snapshot (used by History / Monthly Calendar) to
 // Supabase so every device sees the same history.
 async function syncDayLogToCloud(log) {
-    if (!cloudOnline || !sb) return;
-    try {
-        await sb.from('daily_logs').upsert({ date: log.date, data: log }, { onConflict: 'date' });
-    } catch { goOffline(); }
+    return sbUpsert('daily_logs', { date: log.date, data: log }, { onConflict: 'date' }, 'day log ' + log.date);
 }
 
 async function syncTodosToCloud() {
-    if (!cloudOnline || !sb) return;
-    try {
-        const todos = getTodos();
-        // Upsert all local todos
-        if (todos.length) {
-            await sb.from('todos').upsert(
-                todos.map(t => ({ id: String(t.id), text: t.text, done: t.done, priority: t.pri || 'med' })),
-                { onConflict: 'id' }
-            );
-        }
-        // Remove cloud todos that no longer exist locally
-        const { data: cloudRows } = await sb.from('todos').select('id');
+    if (!cloudOnline || !sb) return false;
+    const todos = getTodos();
+    let ok = true;
+    // Upsert all local todos
+    if (todos.length) {
+        ok = await sbUpsert('todos',
+            todos.map(t => ({ id: String(t.id), text: t.text, done: t.done, priority: t.pri || 'med' })),
+            { onConflict: 'id' }, 'todos');
+    }
+    // Remove cloud todos that no longer exist locally
+    const cloudRows = await sbSelect('todos', q => q.select('id'), 'todos (orphan check)');
+    if (cloudRows) {
         const localIds = new Set(todos.map(t => String(t.id)));
-        const orphans  = (cloudRows || []).map(r => r.id).filter(id => !localIds.has(id));
-        if (orphans.length) await sb.from('todos').delete().in('id', orphans);
-    } catch { goOffline(); }
+        const orphans  = cloudRows.map(r => r.id).filter(id => !localIds.has(id));
+        if (orphans.length) await sbDelete('todos', q => q.in('id', orphans), 'todos (remove orphans)');
+    }
+    return ok;
 }
 
 async function syncGymToCloud() {
-    if (!cloudOnline || !sb) return;
-    try {
-        const days = getGymDays();
-        const rows = Object.entries(days).map(([date, completed]) => ({ date, completed: !!completed }));
-        if (rows.length) await sb.from('gym_days').upsert(rows, { onConflict: 'date' });
-    } catch { goOffline(); }
+    const days = getGymDays();
+    const rows = Object.entries(days).map(([date, completed]) => ({ date, completed: !!completed }));
+    if (!rows.length) return true;
+    return sbUpsert('gym_days', rows, { onConflict: 'date' }, 'gym days');
 }
 
 async function syncGoalsToCloud() {
-    if (!cloudOnline || !sb) return;
-    try {
-        const data = getMonthlyGoals();
-        await sb.from('monthly_goals').upsert({ month: data.month, goals: { states: data.states } }, { onConflict: 'month' });
-    } catch { goOffline(); }
+    const data = getMonthlyGoals();
+    return sbUpsert('monthly_goals', { month: data.month, goals: { states: data.states } }, { onConflict: 'month' }, 'monthly goals');
 }
 
 async function syncEarningsToCloud() {
-    if (!cloudOnline || !sb) return;
-    try {
-        const kd = getKillData(), dd = getDlbData();
-        await sb.from('earnings').upsert({
-            id:         'main',
-            amount:     Math.max(kd.earned || 0, dd.earned || 0),
-            milestones: { kill: kd.milestones, dlb: dd.milestones },
-        }, { onConflict: 'id' });
-    } catch { goOffline(); }
+    const kd = getKillData(), dd = getDlbData();
+    return sbUpsert('earnings', {
+        id:         'main',
+        amount:     Math.max(kd.earned || 0, dd.earned || 0),
+        milestones: { kill: kd.milestones, dlb: dd.milestones },
+    }, { onConflict: 'id' }, 'earnings');
 }
 
 // ── Monthly Goals ─────────────────────────────────────────────────────
@@ -2224,7 +2287,9 @@ loadTextareas();
 calcStreak();
 updateGlobal();
 
-// Supabase: connect in background — app already running on localStorage
+// Supabase: paints instantly from the local cache above for a snappy load,
+// then connects to Supabase and overwrites/re-renders with cloud data —
+// the cloud is always the source of truth once initSupabase() resolves.
 initSupabase();
 
 setInterval(tick, 1000);
