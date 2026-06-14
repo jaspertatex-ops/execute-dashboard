@@ -1325,10 +1325,10 @@ function renderTodos() {
             const el = document.createElement('div');
             el.className = 'todo-item' + (t.done ? ' done' : '');
             el.innerHTML = `
-                <div class="todo-ring" onclick="toggleTodo(${t.id})"></div>
-                <span class="todo-text" onclick="toggleTodo(${t.id})">${esc(t.text)}</span>
+                <div class="todo-ring" onclick="toggleTodo('${t.id}')"></div>
+                <span class="todo-text" onclick="toggleTodo('${t.id}')">${esc(t.text)}</span>
                 <span class="pri pri-${t.pri}">${t.pri}</span>
-                <button class="del-btn" onclick="deleteTodo(${t.id})">×</button>
+                <button class="del-btn" onclick="deleteTodo('${t.id}')">×</button>
             `;
             list.appendChild(el);
         });
