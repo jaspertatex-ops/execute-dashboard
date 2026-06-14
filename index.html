@@ -335,7 +335,7 @@
         .btn-primary:hover { background: var(--accent-light); }
         .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); font-size: 11px; padding: 5px 10px; }
         .btn-ghost:hover { color: var(--text); border-color: var(--border-light); }
-        .todo-list { display: flex; flex-direction: column; gap: 3px; max-height: 280px; overflow-y: auto; }
+        .todo-list { display: flex; flex-direction: column; gap: 3px; max-height: none; overflow-y: visible; }
         .todo-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); }
         .todo-item:hover { background: var(--surface2); }
         .todo-item:hover .del-btn { opacity: 1; }
@@ -368,21 +368,11 @@
         .save-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
         .save-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
-        /* ── Report ── */
-        .report-box {
-            background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px;
-            font-size: 12px; line-height: 1.7; color: var(--text-secondary); font-family: 'Courier New', monospace;
-            max-height: 220px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 10px; display: none;
-        }
-        .copy-btn {
-            width: 100%; padding: 11px; background: var(--accent-dim); border: 1px solid var(--accent);
-            border-radius: var(--radius-sm); color: var(--accent-light); font-size: 13px; font-weight: 600;
-            cursor: pointer; font-family: inherit; transition: all .2s; display: none;
-        }
-        .copy-btn:hover { background: var(--accent); color: #fff; }
-        .copy-btn.ok { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+        /* ── Reflection ── */
         .section-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin: 12px 0 6px; }
         .section-label:first-child { margin-top: 0; }
+        .reflect-save-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+        .reflect-saved-msg { font-size: 12px; color: var(--green); font-weight: 600; }
 
         /* ═══════════════════════════════════════════
            HISTORY SECTION
@@ -399,6 +389,10 @@
         .hist-summary {
             font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;
             min-height: 18px;
+        }
+        .hist-cal-title {
+            font-size: 15px; font-weight: 700; color: var(--text);
+            margin-bottom: 10px;
         }
         .hist-grid-wrap { overflow-x: auto; padding-bottom: 4px; }
         .hist-grid {
@@ -478,12 +472,6 @@
         }
         .modal-field-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
         .modal-field-text  { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 14px; }
-        .modal-report-pre {
-            background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-            padding: 14px; font-size: 11px; line-height: 1.7; color: var(--text-secondary);
-            font-family: 'Courier New', monospace; white-space: pre-wrap;
-            max-height: 280px; overflow-y: auto;
-        }
 
         /* ── Deadline Banner ── */
         .deadline-banner {
@@ -1093,7 +1081,6 @@
                     <div class="tabs">
                         <button class="tab active" onclick="switchTab('notes',this)">Notes</button>
                         <button class="tab" onclick="switchTab('reflect',this)">Reflection</button>
-                        <button class="tab" onclick="switchTab('report',this)">Claude Report</button>
                     </div>
 
                     <div class="tab-pane active" id="tab-notes">
@@ -1116,20 +1103,10 @@
                         <textarea class="field" id="changeArea" rows="2"
                             placeholder="One specific, actionable change…"
                             oninput="autoSave('change',this.value)"></textarea>
-                    </div>
-
-                    <div class="tab-pane" id="tab-report">
-                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
-                            Generate a full day summary to paste into a Claude chat for personalised advice.
-                        </p>
-                        <div class="section-label">Your question for Claude (optional)</div>
-                        <textarea class="field" id="claudeQ" rows="2"
-                            placeholder="e.g. How do I stop skipping my evening routine?"></textarea>
-                        <button class="btn btn-primary" onclick="generateReport()" style="width:100%;margin:12px 0 10px;">
-                            Generate Report
-                        </button>
-                        <div class="report-box" id="reportBox"></div>
-                        <button class="copy-btn" id="copyBtn" onclick="copyReport()">Copy to Clipboard</button>
+                        <div class="reflect-save-row">
+                            <button class="btn btn-primary" onclick="saveReflection()">Save reflection</button>
+                            <span class="reflect-saved-msg" id="reflectSavedMsg" style="display:none;">Saved.</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1143,10 +1120,11 @@
                 <div class="card-title">📊 History</div>
                 <div class="hist-toggle">
                     <button class="hist-btn active" onclick="switchHistory('week',this)">Last 7 Days</button>
-                    <button class="hist-btn" onclick="switchHistory('month',this)">Last 30 Days</button>
+                    <button class="hist-btn" onclick="switchHistory('month',this)">Monthly Calendar</button>
                 </div>
             </div>
             <div class="card-body">
+                <div class="hist-cal-title" id="histCalTitle" style="display:none;"></div>
                 <div class="hist-summary" id="histSummary"></div>
                 <div id="histGymSummary"></div>
                 <div class="hist-grid-wrap">
@@ -1172,11 +1150,6 @@
             <div class="modal-stats" id="modalStats"></div>
             <div class="modal-sec">Reflection</div>
             <div id="modalReflection"></div>
-            <div class="modal-sec">
-                Daily Report
-                <button class="btn btn-ghost" id="modalCopyBtn" onclick="copyModalReport()">Copy for Claude</button>
-            </div>
-            <pre class="modal-report-pre" id="modalReport"></pre>
         </div>
     </div>
 </div>
@@ -1194,6 +1167,7 @@ const DEFAULT_SCHEDULE = [
     { time: '', label: '3 meals today',                tag: 'health' },
     { time: '', label: 'Walk outside',                 tag: 'health' },
     { time: '', label: 'Learn something — 30 min',     tag: 'mind'   },
+    { time: '', label: 'Connect and talk to a family member', tag: 'mind' },
     { time: '', label: 'Wind down / journal',          tag: 'block'  },
     { time: '', label: 'Sleep by 10:30pm',             tag: 'block'  },
 ];
@@ -1229,7 +1203,7 @@ function getNNState() {
     if (s) return JSON.parse(s);
     return Object.fromEntries(NN_ITEMS.map(i => [i.id, false]));
 }
-function saveNNState(state) { localStorage.setItem('nn_' + today, JSON.stringify(state)); }
+function saveNNState(state) { localStorage.setItem('nn_' + today, JSON.stringify(state)); syncScheduleToCloud(); }
 
 function toggleNN(id) {
     const state = getNNState();
@@ -1364,6 +1338,22 @@ function renderTodos() {
     document.getElementById('todoBar').style.width  = pct + '%';
     document.getElementById('todoPct').textContent  = `${done} / ${todos.length}`;
     document.getElementById('statTodos').textContent = pct + '%';
+
+    // Only scroll once there are more than 9 items — otherwise let the
+    // list expand naturally into the empty space above the history section.
+    const items = list.querySelectorAll('.todo-item');
+    if (items.length > 9) {
+        const gap = 3;
+        let h = 0;
+        for (let i = 0; i < 9; i++) h += items[i].offsetHeight;
+        h += gap * 8;
+        list.style.maxHeight = h + 'px';
+        list.style.overflowY = 'auto';
+    } else {
+        list.style.maxHeight = 'none';
+        list.style.overflowY = 'visible';
+    }
+
     updateGlobal();
 }
 
@@ -1374,6 +1364,19 @@ function loadTextareas() {
         const v = localStorage.getItem(k + '_' + today);
         if (v) document.getElementById(id).value = v;
     });
+}
+
+// Explicit "Save reflection" button — pushes the reflection fields to
+// Supabase immediately and shows a brief confirmation.
+async function saveReflection() {
+    localStorage.setItem('missed_' + today, document.getElementById('missedArea').value);
+    localStorage.setItem('why_'    + today, document.getElementById('whyArea').value);
+    localStorage.setItem('change_' + today, document.getElementById('changeArea').value);
+    await syncScheduleToCloud();
+    const msg = document.getElementById('reflectSavedMsg');
+    msg.style.display = 'inline';
+    clearTimeout(saveReflection._t);
+    saveReflection._t = setTimeout(() => { msg.style.display = 'none'; }, 2000);
 }
 
 // ── Day Log ───────────────────────────────────────────────────────────
@@ -1411,13 +1414,14 @@ function saveDayLog(force = false) {
         missed: localStorage.getItem('missed_' + today) || '',
         why:    localStorage.getItem('why_'    + today) || '',
         change: localStorage.getItem('change_' + today) || '',
-        report: localStorage.getItem('report_' + today) || '',
         savedAt: Date.now(),
     };
     localStorage.setItem('log_' + today, JSON.stringify(log));
 
     const index = JSON.parse(localStorage.getItem('logs_index') || '[]');
     if (!index.includes(today)) { index.push(today); index.sort(); localStorage.setItem('logs_index', JSON.stringify(index)); }
+
+    syncDayLogToCloud(log);
 }
 
 // Called every 30s and on tab focus. If the date has changed, save and reload.
@@ -1426,87 +1430,6 @@ function checkDayRollover() {
         saveDayLog();
         location.reload();
     }
-}
-
-// ── Report ────────────────────────────────────────────────────────────
-let lastReport = '';
-
-function generateReport() {
-    const sched    = getSchedule();
-    const todos    = getTodos();
-    const nnState  = getNNState();
-    const nnDone   = NN_ITEMS.filter(i => nnState[i.id]);
-    const nnMissed = NN_ITEMS.filter(i => !nnState[i.id]);
-    const notes    = localStorage.getItem('notes_'  + today) || '';
-    const missed   = localStorage.getItem('missed_' + today) || '';
-    const why      = localStorage.getItem('why_'    + today) || '';
-    const change   = localStorage.getItem('change_' + today) || '';
-    const q        = document.getElementById('claudeQ').value.trim();
-    const dateStr  = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-
-    const schedDone   = sched.filter(i => i.done);
-    const schedMissed = sched.filter(i => !i.done);
-    const todosDone   = todos.filter(t => t.done);
-    const todosPend   = todos.filter(t => !t.done);
-    const sp = sched.length ? Math.round(schedDone.length / sched.length * 100) : 0;
-    const tp = todos.length ? Math.round(todosDone.length / todos.length * 100) : 0;
-
-    lastReport = `## Daily Report — ${dateStr}
-
-### Non-Negotiables (${nnDone.length}/${NN_ITEMS.length})
-${nnDone.length   ? nnDone.map(i   => `  ✓ ${i.label}`).join('\n') : '  (none completed)'}
-${nnMissed.length ? '\nMissed:\n' + nnMissed.map(i => `  ✗ ${i.label}`).join('\n') : '  All completed!'}
-
-### Overview
-- Schedule: ${sp}% complete (${schedDone.length}/${sched.length})
-- To-Dos: ${tp}% complete (${todosDone.length}/${todos.length})
-
-### Schedule — Completed ✓
-${schedDone.length ? schedDone.map(i => `  ✓ [${(i.tag||'').toUpperCase()}] ${i.time} – ${i.label}`).join('\n') : '  (none)'}
-
-### Schedule — Missed ✗
-${schedMissed.length ? schedMissed.map(i => `  ✗ [${(i.tag||'').toUpperCase()}] ${i.time} – ${i.label}`).join('\n') : '  All done!'}
-
-### To-Dos — Done ✓
-${todosDone.length ? todosDone.map(t => `  ✓ [${t.pri.toUpperCase()}] ${t.text}`).join('\n') : '  (none)'}
-
-### To-Dos — Pending
-${todosPend.length ? todosPend.map(t => `  ○ [${t.pri.toUpperCase()}] ${t.text}`).join('\n') : '  All clear!'}
-
-### Notes
-${notes || '(none)'}
-
-### Reflection
-What I missed: ${missed || '(not filled in)'}
-Why: ${why || '(not filled in)'}
-What I'll change: ${change || '(not filled in)'}
-${q ? `\n### My Question for You\n${q}` : ''}`;
-
-    // Persist report so history can include it
-    localStorage.setItem('report_' + today, lastReport);
-    // Update existing log entry's report field if a log already exists
-    const existing = localStorage.getItem('log_' + today);
-    if (existing) {
-        const log = JSON.parse(existing);
-        log.report = lastReport;
-        localStorage.setItem('log_' + today, JSON.stringify(log));
-    }
-
-    const box = document.getElementById('reportBox');
-    const btn = document.getElementById('copyBtn');
-    box.textContent = lastReport;
-    box.style.display = 'block';
-    btn.style.display = 'block';
-    renderHistory(); // today card now shows it has a report
-}
-
-function copyReport() {
-    navigator.clipboard.writeText(lastReport).then(() => {
-        const btn = document.getElementById('copyBtn');
-        btn.textContent = '✓ Copied — paste into Claude!';
-        btn.classList.add('ok');
-        setTimeout(() => { btn.textContent = 'Copy to Clipboard'; btn.classList.remove('ok'); }, 2500);
-    });
 }
 
 // ── History ───────────────────────────────────────────────────────────
@@ -1520,15 +1443,32 @@ function switchHistory(view, btn) {
 }
 
 function renderHistory() {
-    const days = historyView === 'week' ? 7 : 30;
-    const now  = new Date();
+    const now = new Date();
 
-    // Build date list (oldest → newest)
-    const dates = Array.from({ length: days }, (_, i) => {
-        const d = new Date(now);
-        d.setDate(d.getDate() - (days - 1 - i));
-        return d.toISOString().split('T')[0];
-    });
+    // Build date list (oldest → newest).
+    // Week view: rolling last 7 days. Month view: the real calendar month
+    // (1st → last day), like Google Calendar, using local dates so the
+    // weekday alignment can't drift due to UTC conversion.
+    let dates;
+    const titleEl = document.getElementById('histCalTitle');
+    if (historyView === 'month') {
+        // Derive the calendar month from `today` (same date convention used
+        // everywhere else) so `date === today` lines up for the highlight.
+        const [ty, tm] = today.split('-').map(Number);
+        const daysInMonth = new Date(ty, tm, 0).getDate();
+        dates = Array.from({ length: daysInMonth }, (_, i) =>
+            `${ty}-${String(tm).padStart(2,'0')}-${String(i + 1).padStart(2,'0')}`
+        );
+        titleEl.textContent = new Date(ty, tm - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        titleEl.style.display = '';
+    } else {
+        dates = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(now);
+            d.setDate(d.getDate() - (6 - i));
+            return d.toISOString().split('T')[0];
+        });
+        titleEl.style.display = 'none';
+    }
 
     // Resolve each date to a log (today uses live state)
     const logs = dates.map(date => {
@@ -1543,7 +1483,7 @@ function renderHistory() {
                 schedPct: sched.length ? Math.round(schedDone/sched.length*100) : 0,
                 todoDone, todoTotal: todos.length,
                 nnDone, nnTotal: NN_ITEMS.length,
-                notes:'', missed:'', why:'', change:'', report:'',
+                notes:'', missed:'', why:'', change:'',
             };
         }
         const raw = localStorage.getItem('log_' + date);
@@ -1593,7 +1533,9 @@ function renderHistory() {
     const grid = document.getElementById('histGrid');
     grid.innerHTML = '';
 
-    // Month view: add DOW headers + alignment padding (Sun-start)
+    // Month view: add DOW headers + alignment padding (Sun-start), just like
+    // a Google Calendar month grid.
+    let leadingBlanks = 0;
     if (historyView === 'month') {
         ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
             const h = document.createElement('div');
@@ -1601,8 +1543,8 @@ function renderHistory() {
             h.textContent = d;
             grid.appendChild(h);
         });
-        const firstDow = new Date(dates[0] + 'T12:00:00').getDay(); // Sun=0
-        for (let i = 0; i < firstDow; i++) grid.appendChild(document.createElement('div'));
+        leadingBlanks = new Date(dates[0] + 'T12:00:00').getDay(); // Sun=0
+        for (let i = 0; i < leadingBlanks; i++) grid.appendChild(document.createElement('div'));
     }
 
     dates.forEach((date, idx) => {
@@ -1640,6 +1582,13 @@ function renderHistory() {
         }
         grid.appendChild(card);
     });
+
+    // Month view: pad the final week to a full row of 7 columns.
+    if (historyView === 'month') {
+        const totalCells = leadingBlanks + dates.length;
+        const trailingBlanks = (7 - (totalCells % 7)) % 7;
+        for (let i = 0; i < trailingBlanks; i++) grid.appendChild(document.createElement('div'));
+    }
 }
 
 // ── Day Modal ─────────────────────────────────────────────────────────
@@ -1669,21 +1618,9 @@ function openDayModal(log) {
         ref.innerHTML = '<div class="modal-field-text" style="color:var(--text-muted)">(No reflection recorded for this day)</div>';
     }
 
-    document.getElementById('modalReport').textContent = log.report ||
-        '(No report saved for this day.\nGenerate one via the Claude Report tab while the day is active.)';
-
     document.getElementById('dayModal').classList.add('open');
 }
 function closeDayModal() { document.getElementById('dayModal').classList.remove('open'); }
-function copyModalReport() {
-    const text = document.getElementById('modalReport').textContent;
-    if (text.startsWith('(')) return;
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = document.getElementById('modalCopyBtn');
-        btn.textContent = '✓ Copied';
-        setTimeout(() => btn.textContent = 'Copy for Claude', 2000);
-    });
-}
 
 // ── Tabs ──────────────────────────────────────────────────────────────
 function switchTab(name, el) {
@@ -1705,6 +1642,7 @@ function setMotd() {
         "Your future self is watching. Don't embarrass him.",
         "The gap between who you are and who you want to be is called action.",
         "The hard path and the right path are usually the same path.",
+        "The day you plant a seed is not the day you eat the fruit.",
     ];
     const start = new Date(new Date().getFullYear(), 0, 0);
     const idx   = Math.floor((Date.now() - start) / 86400000) % quotes.length;
@@ -1761,6 +1699,7 @@ function calcStreak() {
 //   create table daily_schedule (
 //     date text primary key,
 //     completed_tasks jsonb,
+//     nn_state jsonb,
 //     notes text, missed text, why_text text, change_text text
 //   );
 //   create table gym_days (date text primary key, completed boolean default false);
@@ -1772,10 +1711,15 @@ function calcStreak() {
 //     created_at timestamptz default now()
 //   );
 //   create table earnings (id text primary key, amount numeric default 0, milestones jsonb);
+//   -- Per-day history snapshots (so the calendar/history is identical on every device)
+//   create table daily_logs (date text primary key, data jsonb, updated_at timestamptz default now());
+//
+//   -- If daily_schedule already exists from an earlier version, add the new column:
+//   alter table daily_schedule add column if not exists nn_state jsonb;
 //
 //   -- Allow anon access (personal dashboard, no auth):
 //   do $$ declare t text;
-//   begin for t in select unnest(array['daily_schedule','gym_days','monthly_goals','todos','earnings'])
+//   begin for t in select unnest(array['daily_schedule','gym_days','monthly_goals','todos','earnings','daily_logs'])
 //   loop execute format('alter table %I enable row level security', t);
 //         execute format('create policy anon_all on %I for all to anon using (true) with check (true)', t);
 //   end loop; end $$;
@@ -1829,10 +1773,23 @@ async function loadFromCloud() {
             const { data } = await sb.from('daily_schedule').select('*').eq('date', today).maybeSingle();
             if (!data) return;
             if (data.completed_tasks) localStorage.setItem('sched_'  + today, JSON.stringify(data.completed_tasks));
+            if (data.nn_state)    localStorage.setItem('nn_'    + today, JSON.stringify(data.nn_state));
             if (data.notes)       localStorage.setItem('notes_'  + today, data.notes);
             if (data.missed)      localStorage.setItem('missed_' + today, data.missed);
             if (data.why_text)    localStorage.setItem('why_'    + today, data.why_text);
             if (data.change_text) localStorage.setItem('change_' + today, data.change_text);
+        })(),
+        (async () => {
+            const { data } = await sb.from('daily_logs').select('*');
+            if (!data?.length) return;
+            const index = JSON.parse(localStorage.getItem('logs_index') || '[]');
+            data.forEach(row => {
+                if (row.date === today || !row.data) return; // don't override today's live state
+                localStorage.setItem('log_' + row.date, JSON.stringify(row.data));
+                if (!index.includes(row.date)) index.push(row.date);
+            });
+            index.sort();
+            localStorage.setItem('logs_index', JSON.stringify(index));
         })(),
         (async () => {
             const { data } = await sb.from('todos').select('*').order('created_at');
@@ -1897,11 +1854,21 @@ async function syncScheduleToCloud() {
         await sb.from('daily_schedule').upsert({
             date:            today,
             completed_tasks: getSchedule(),
+            nn_state:        getNNState(),
             notes:           localStorage.getItem('notes_'  + today) || '',
             missed:          localStorage.getItem('missed_' + today) || '',
             why_text:        localStorage.getItem('why_'    + today) || '',
             change_text:     localStorage.getItem('change_' + today) || '',
         });
+    } catch { goOffline(); }
+}
+
+// Pushes a finished day's snapshot (used by History / Monthly Calendar) to
+// Supabase so every device sees the same history.
+async function syncDayLogToCloud(log) {
+    if (!cloudOnline || !sb) return;
+    try {
+        await sb.from('daily_logs').upsert({ date: log.date, data: log }, { onConflict: 'date' });
     } catch { goOffline(); }
 }
 
