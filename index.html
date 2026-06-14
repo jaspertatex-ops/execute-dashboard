@@ -2002,15 +2002,21 @@ function renderMonthlyGoals() {
 function getGymDays() { return JSON.parse(localStorage.getItem('gym_days') || '{}'); }
 function saveGymDays(d) { localStorage.setItem('gym_days', JSON.stringify(d)); syncGymToCloud(); }
 
+// Local (not UTC) YYYY-MM-DD — avoids the day flipping early/late near midnight
+// in timezones offset from UTC, which is what caused the wrong day to highlight.
+function localDateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function getWeekDates() {
     const now = new Date();
     const sunday = new Date(now);
-    sunday.setDate(now.getDate() - now.getDay()); // back to Sunday
+    sunday.setDate(now.getDate() - now.getDay()); // back to Sunday (week resets Sun 12am)
     sunday.setHours(0, 0, 0, 0);
     return Array.from({length: 7}, (_, i) => {
         const d = new Date(sunday);
         d.setDate(sunday.getDate() + i);
-        return d.toISOString().split('T')[0];
+        return localDateKey(d);
     });
 }
 
@@ -2018,10 +2024,10 @@ function calcGymStreak() {
     const days = getGymDays();
     const d = new Date(); d.setHours(0, 0, 0, 0);
     // If today not logged, start counting from yesterday
-    if (!days[d.toISOString().split('T')[0]]) d.setDate(d.getDate() - 1);
+    if (!days[localDateKey(d)]) d.setDate(d.getDate() - 1);
     let streak = 0;
     for (let i = 0; i < 365; i++) {
-        if (days[d.toISOString().split('T')[0]]) { streak++; d.setDate(d.getDate() - 1); }
+        if (days[localDateKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
         else break;
     }
     return streak;
@@ -2035,9 +2041,11 @@ function toggleGymDay(dateKey) {
 }
 
 function renderGymBanner() {
-    const days     = getGymDays();
-    const week     = getWeekDates();
-    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const days       = getGymDays();
+    const week       = getWeekDates();
+    const dayNames   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const todayKey   = localDateKey(new Date());
+    const todayIndex = new Date().getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
     let weekDone = 0;
 
     // Streak
@@ -2048,8 +2056,8 @@ function renderGymBanner() {
     container.innerHTML = '';
     week.forEach((dateKey, i) => {
         const isDone   = !!days[dateKey];
-        const isToday  = dateKey === today;
-        const isFuture = dateKey > today;
+        const isToday  = i === todayIndex;
+        const isFuture = dateKey > todayKey;
         if (isDone) weekDone++;
 
         const wrap = document.createElement('div');
