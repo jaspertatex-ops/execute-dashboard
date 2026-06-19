@@ -147,6 +147,15 @@
         .motd-red   { border-left-color: #ff4444; color: #ff6b6b; }
         .motd-green { border-left-color: var(--green); color: var(--green); }
 
+        /* ── Inter-banner quote (purple → red) ── */
+        .motd-inter {
+            text-align: center; font-style: italic;
+            font-size: 12px; color: #a878c0;
+            letter-spacing: .02em; line-height: 1.5;
+            padding: 10px 24px;
+            animation: motdFade .8s ease both;
+        }
+
         /* ── Stats row ── */
         .stats-row {
             display: grid; grid-template-columns: repeat(4, 1fr);
@@ -950,6 +959,11 @@
     </div>
 </div>
 
+<!-- Inter-banner quote: purple banner → red deadline banner -->
+<div style="max-width:1380px;margin:0 auto;">
+    <div class="motd-inter" id="motdInter"></div>
+</div>
+
 <!-- Deadline Banner (quote sits between this and the gym banner) -->
 <div class="deadline-banner">
 
@@ -1723,11 +1737,16 @@ function setMotd() {
         "The hard path and the right path are usually the same path.",
         "The day you plant a seed is not the day you eat the fruit.",
     ];
-    const start = new Date(new Date().getFullYear(), 0, 0);
-    const idx   = Math.floor((Date.now() - start) / 86400000) % quotes.length;
-    const el    = document.getElementById('motd');
+    const start  = new Date(new Date().getFullYear(), 0, 0);
+    const idx    = Math.floor((Date.now() - start) / 86400000) % quotes.length;
+    const idx2   = (idx + 1) % quotes.length; // offset by 1 — never the same as idx
+
+    const el = document.getElementById('motd');
     el.textContent = quotes[idx];
     el.className   = 'motd' + (idx === 3 ? ' motd-red' : idx === 4 ? ' motd-green' : '');
+
+    const el2 = document.getElementById('motdInter');
+    if (el2) el2.textContent = quotes[idx2];
 }
 
 // ── Clock & greeting ──────────────────────────────────────────────────
