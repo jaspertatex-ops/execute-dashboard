@@ -147,21 +147,17 @@
         .motd-red   { border-left-color: #ff4444; color: #ff6b6b; }
         .motd-green { border-left-color: var(--green); color: var(--green); }
 
-        /* ── Dual quote row (purple → red banners) ── */
+        /* ── Dual quote row (top of page) ── */
         .dual-quote-row {
             max-width: 1380px; margin: 0 auto;
             padding: 6px 24px;
-            display: flex; align-items: baseline; gap: 20px;
+            display: flex; flex-direction: column; gap: 2px;
             animation: motdFade .8s ease both;
         }
         .dq-quote {
             font-size: 12px; font-style: italic;
             color: #a878c0; letter-spacing: .02em; line-height: 1.5;
-        }
-        .dq-left   { flex: 0 1 auto; text-align: left; }
-        .dq-center { flex: 1; text-align: left; }
-        @media (max-width: 600px) {
-            .dual-quote-row { flex-direction: column; gap: 4px; }
+            text-align: left;
         }
 
         /* ── Stats row ── */
@@ -950,6 +946,12 @@
     </div>
 </div>
 
+<!-- Motivational quotes — top of page -->
+<div class="dual-quote-row">
+    <div class="dq-quote" id="motd"></div>
+    <div class="dq-quote" id="motdInter"></div>
+</div>
+
 <!-- Mindset Banner — above deadline banner -->
 <div class="mindset-banner">
     <div class="mindset-inner">
@@ -967,13 +969,7 @@
     </div>
 </div>
 
-<!-- Dual quote row: purple banner → red deadline banner -->
-<div class="dual-quote-row">
-    <div class="dq-quote dq-left" id="motd"></div>
-    <div class="dq-quote dq-center" id="motdInter"></div>
-</div>
-
-<!-- Deadline Banner (quote sits between this and the gym banner) -->
+<!-- Deadline Banner -->
 <div class="deadline-banner">
 
     <!-- Top row: title + countdown -->
@@ -1255,8 +1251,9 @@
 <script>
 // ── Default schedule ─────────────────────────────────────────────────
 const DEFAULT_SCHEDULE = [
-    { time: '', label: 'Wake up — no phone',           tag: 'block'  },
-    { time: '', label: 'Gym',                          tag: 'health' },
+    { time: '', label: 'Wake up — no phone',                              tag: 'block'  },
+    { time: '06:15', label: 'Go outside — grounding, sunlight (low cortisol)', tag: 'health' },
+    { time: '', label: 'Gym',                                              tag: 'health' },
     { time: '', label: 'Review goals & plan the day',  tag: 'mind'   },
     { time: '', label: 'Job applications — 5 minimum', tag: 'work'   },
     { time: '', label: 'Deep Work Block — business',   tag: 'work'   },
@@ -1746,15 +1743,10 @@ function setMotd() {
     const idx    = Math.floor((Date.now() - start) / 86400000) % quotes.length;
     const idx2   = (idx + 1) % quotes.length; // offset by 1 — never the same as idx
 
-    const el = document.getElementById('motd');
-    el.textContent = quotes[idx];
-    el.className = 'dq-quote dq-left';
+    document.getElementById('motd').textContent = quotes[idx];
 
     const el2 = document.getElementById('motdInter');
-    if (el2) {
-        el2.textContent = quotes[idx2];
-        el2.className = 'dq-quote dq-center';
-    }
+    if (el2) el2.textContent = quotes[idx2];
 }
 
 // ── Clock & greeting ──────────────────────────────────────────────────
