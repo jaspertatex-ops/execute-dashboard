@@ -1252,7 +1252,7 @@
 // ── Default schedule ─────────────────────────────────────────────────
 const DEFAULT_SCHEDULE = [
     { time: '', label: 'Wake up — no phone',                              tag: 'block'  },
-    { time: '06:15', label: 'Go outside — grounding, sunlight (low cortisol)', tag: 'health' },
+    { time: '', label: 'Go outside — grounding, sunlight (low cortisol)', tag: 'health' },
     { time: '', label: 'Gym',                                              tag: 'health' },
     { time: '', label: 'Review goals & plan the day',  tag: 'mind'   },
     { time: '', label: 'Job applications — 5 minimum', tag: 'work'   },
@@ -1328,29 +1328,36 @@ function renderNN() {
 }
 
 // ── Schedule ──────────────────────────────────────────────────────────
-// Ensures any new items added to DEFAULT_SCHEDULE are inserted into a saved
-// schedule (from localStorage or Supabase) at the correct relative position.
-// Matched by label so existing done-state is preserved for unchanged items.
-function mergeWithDefault(saved) {
-    const result = [...saved];
-    DEFAULT_SCHEDULE.forEach((defItem, defIdx) => {
-        if (result.some(s => s.label === defItem.label)) return;
-        // Find the last DEFAULT_SCHEDULE predecessor that exists in result
-        let insertAfter = -1;
-        for (let i = defIdx - 1; i >= 0; i--) {
-            const idx = result.findIndex(s => s.label === DEFAULT_SCHEDULE[i].label);
-            if (idx !== -1) { insertAfter = idx; break; }
-        }
-        result.splice(insertAfter + 1, 0, { ...defItem, done: false });
-    });
-    return result;
+// Saved data stores ONLY completion state (label → boolean map).
+// DEFAULT_SCHEDULE is always the authoritative task list — new tasks added
+// to the array appear immediately for every day, completed or not.
+//
+// Handles the old format too (full array of task objects) so existing
+// Supabase / localStorage data degrades gracefully.
+function getSavedCompletions() {
+    const s = localStorage.getItem('sched_' + today);
+    if (!s) return {};
+    const parsed = JSON.parse(s);
+    if (Array.isArray(parsed)) {
+        // Old format: full task array — extract label → done map
+        const map = {};
+        parsed.forEach(item => { if (item.label) map[item.label] = !!item.done; });
+        return map;
+    }
+    return parsed; // New format: already a label → done map
 }
 
 function getSchedule() {
-    const s = localStorage.getItem('sched_' + today);
-    return s ? mergeWithDefault(JSON.parse(s)) : DEFAULT_SCHEDULE.map(i => ({ ...i, done: false }));
+    const completions = getSavedCompletions();
+    return DEFAULT_SCHEDULE.map(item => ({ ...item, done: completions[item.label] || false }));
 }
-function saveSchedule(s) { localStorage.setItem('sched_' + today, JSON.stringify(s)); syncScheduleToCloud(); }
+
+function saveSchedule(sched) {
+    const completions = {};
+    sched.forEach(item => { completions[item.label] = !!item.done; });
+    localStorage.setItem('sched_' + today, JSON.stringify(completions));
+    syncScheduleToCloud();
+}
 
 function renderSchedule() {
     const sched = getSchedule();
@@ -2046,7 +2053,7 @@ async function migrateLocalToCloud() {
 async function syncScheduleToCloud() {
     return sbUpsert('daily_schedule', {
         date:            today,
-        completed_tasks: getSchedule(),
+        completed_tasks: getSavedCompletions(),
         nn_state:        getNNState(),
         notes:           localStorage.getItem('notes_'  + today) || '',
         missed:          localStorage.getItem('missed_' + today) || '',
