@@ -1328,9 +1328,27 @@ function renderNN() {
 }
 
 // ── Schedule ──────────────────────────────────────────────────────────
+// Ensures any new items added to DEFAULT_SCHEDULE are inserted into a saved
+// schedule (from localStorage or Supabase) at the correct relative position.
+// Matched by label so existing done-state is preserved for unchanged items.
+function mergeWithDefault(saved) {
+    const result = [...saved];
+    DEFAULT_SCHEDULE.forEach((defItem, defIdx) => {
+        if (result.some(s => s.label === defItem.label)) return;
+        // Find the last DEFAULT_SCHEDULE predecessor that exists in result
+        let insertAfter = -1;
+        for (let i = defIdx - 1; i >= 0; i--) {
+            const idx = result.findIndex(s => s.label === DEFAULT_SCHEDULE[i].label);
+            if (idx !== -1) { insertAfter = idx; break; }
+        }
+        result.splice(insertAfter + 1, 0, { ...defItem, done: false });
+    });
+    return result;
+}
+
 function getSchedule() {
     const s = localStorage.getItem('sched_' + today);
-    return s ? JSON.parse(s) : DEFAULT_SCHEDULE.map(i => ({ ...i, done: false }));
+    return s ? mergeWithDefault(JSON.parse(s)) : DEFAULT_SCHEDULE.map(i => ({ ...i, done: false }));
 }
 function saveSchedule(s) { localStorage.setItem('sched_' + today, JSON.stringify(s)); syncScheduleToCloud(); }
 
