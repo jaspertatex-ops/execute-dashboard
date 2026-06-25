@@ -813,6 +813,49 @@
             .mindset-check-section { padding: 12px 20px 16px; }
         }
 
+        /* ═══════════════════════════════════════════
+           BOTTOM TAB BAR (History | Ideas)
+        ═══════════════════════════════════════════ */
+        .bottom-tabs-bar {
+            display: flex; gap: 3px; margin-top: 22px; padding: 4px;
+            background: var(--surface2); border-radius: 10px;
+        }
+        .bottom-tab {
+            flex: 1; padding: 9px 14px; border-radius: 7px; border: none;
+            background: transparent; color: var(--text-muted);
+            font-size: 13px; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: all .15s;
+        }
+        .bottom-tab.active { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .bottom-tab-pane { display: none; }
+        .bottom-tab-pane.active { display: block; }
+
+        /* ═══════════════════════════════════════════
+           IDEAS SECTION
+        ═══════════════════════════════════════════ */
+        .ideas-section-header {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .1em; color: #f39c12; margin: 0 0 12px;
+        }
+        .ideas-add-btn { background: #f39c12; color: #000; font-weight: 700; }
+        .ideas-add-btn:hover { background: #e67e22; }
+        .idea-card {
+            background: #110a00; border: 1px solid rgba(243,156,18,.22);
+            border-left: 3px solid #f39c12;
+            border-radius: var(--radius-sm);
+            padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px;
+            margin-bottom: 8px; animation: fadeUp .22s ease both;
+        }
+        .idea-card-content { flex: 1; }
+        .idea-card-text { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 3px; }
+        .idea-card-date { font-size: 11px; color: var(--text-muted); }
+        .idea-del-btn {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-muted); font-size: 18px; line-height: 1;
+            padding: 0 5px; border-radius: 4px; transition: color .15s; flex-shrink: 0;
+        }
+        .idea-del-btn:hover { color: var(--red); }
+
         /* ── Responsive ── */
         @media (max-width: 860px) {
             .grid       { grid-template-columns: 1fr; } /* stacks to single column */
@@ -1207,22 +1250,55 @@
         </div>
     </div>
 
-    <!-- History -->
-    <div class="history-section">
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">📊 History</div>
-                <div class="hist-toggle">
-                    <button class="hist-btn active" onclick="switchHistory('week',this)">Last 7 Days</button>
-                    <button class="hist-btn" onclick="switchHistory('month',this)">Monthly Calendar</button>
+    <!-- Bottom Tab Bar: History | Ideas -->
+    <div class="bottom-tabs-bar">
+        <button class="bottom-tab active" onclick="switchBottomTab('history',this)">📊 History</button>
+        <button class="bottom-tab" onclick="switchBottomTab('ideas',this)">💡 Ideas</button>
+    </div>
+
+    <!-- History Tab Pane -->
+    <div class="bottom-tab-pane active" id="bottom-tab-history">
+        <div class="history-section">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📊 History</div>
+                    <div class="hist-toggle">
+                        <button class="hist-btn active" onclick="switchHistory('week',this)">Last 7 Days</button>
+                        <button class="hist-btn" onclick="switchHistory('month',this)">Monthly Calendar</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="hist-cal-title" id="histCalTitle" style="display:none;"></div>
+                    <div class="hist-summary" id="histSummary"></div>
+                    <div id="histGymSummary"></div>
+                    <div class="hist-grid-wrap">
+                        <div class="hist-grid" id="histGrid"></div>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Ideas Tab Pane -->
+    <div class="bottom-tab-pane" id="bottom-tab-ideas">
+        <div class="card" style="margin-top:14px;">
             <div class="card-body">
-                <div class="hist-cal-title" id="histCalTitle" style="display:none;"></div>
-                <div class="hist-summary" id="histSummary"></div>
-                <div id="histGymSummary"></div>
-                <div class="hist-grid-wrap">
-                    <div class="hist-grid" id="histGrid"></div>
+                <div class="ideas-section-header">Business Ideas</div>
+                <div class="todo-input-row">
+                    <input type="text" class="field grow" id="ideaInput"
+                        placeholder="Add an idea…"
+                        onkeydown="if(event.key==='Enter')addIdea()">
+                    <button class="btn ideas-add-btn" onclick="addIdea()">Add idea</button>
+                </div>
+                <div id="ideasList" style="margin-bottom:28px;min-height:8px;"></div>
+
+                <div class="ideas-section-header" style="margin-top:8px;">Notes &amp; thoughts</div>
+                <textarea class="field" id="ideasNotesArea" rows="12"
+                    placeholder="Freeform notes, plans, raw thoughts…"
+                    oninput="debounceIdeasNote(this.value)"></textarea>
+                <div class="save-hint">
+                    <div class="save-dot" style="background:#f39c12"></div>
+                    Auto-saved to cloud
                 </div>
             </div>
         </div>
@@ -1841,9 +1917,21 @@ function calcStreak() {
 //   alter table daily_schedule add column if not exists nn_state jsonb;
 //   alter table daily_schedule add column if not exists mindset_check boolean;
 //
+//   -- Ideas tab tables:
+//   create table ideas (
+//     id text primary key,
+//     text text not null,
+//     created_at timestamptz default now()
+//   );
+//   create table notes (
+//     id text primary key,
+//     content text,
+//     updated_at timestamptz default now()
+//   );
+//
 //   -- Allow anon access (personal dashboard, no auth):
 //   do $$ declare t text;
-//   begin for t in select unnest(array['daily_schedule','gym_days','monthly_goals','todos','earnings','daily_logs'])
+//   begin for t in select unnest(array['daily_schedule','gym_days','monthly_goals','todos','earnings','daily_logs','ideas','notes'])
 //   loop execute format('alter table %I enable row level security', t);
 //         execute format('create policy anon_all on %I for all to anon using (true) with check (true)', t);
 //   end loop; end $$;
@@ -2018,13 +2106,24 @@ async function loadFromCloud() {
             if (data.milestones?.dlb) dd.milestones = data.milestones.dlb;
             localStorage.setItem('dlb_data', JSON.stringify(dd));
         })(),
+        (async () => {
+            const data = await sbSelect('ideas', q => q.select('*').order('created_at', { ascending: false }), 'ideas');
+            if (!data?.length) return;
+            const ideas = data.map(r => ({ id: r.id, text: r.text, created_at: r.created_at }));
+            localStorage.setItem('ideas', JSON.stringify(ideas));
+        })(),
+        (async () => {
+            const data = await sbSelect('notes', q => q.select('*').eq('id', 'main').maybeSingle(), 'ideas note');
+            if (!data?.content) return;
+            localStorage.setItem('ideas_note', data.content);
+        })(),
     ]);
     console.log('[Supabase] loadFromCloud complete — re-rendering UI from cloud data');
     // Re-render everything with freshly loaded cloud data
     renderSchedule(); renderTodos(); renderGymBanner(); renderMonthlyGoals();
     renderNN(); renderKill(); initKillEarnedInput();
     updateDeadlineBanner(); loadTextareas(); calcStreak(); updateGlobal();
-    renderMindsetCheck(); renderHistory();
+    renderMindsetCheck(); renderHistory(); renderIdeas(); loadIdeasNote();
 }
 
 // ── Migrate localStorage → cloud (first run) ─────────────────────────
@@ -2043,6 +2142,8 @@ async function migrateLocalToCloud() {
         syncGymToCloud(),
         syncGoalsToCloud(),
         syncEarningsToCloud(),
+        syncIdeasToCloud(),
+        syncIdeasNoteToCloud(),
     ]);
 }
 
@@ -2420,6 +2521,88 @@ function renderMindsetCheck() {
     if (result) result.style.display = checked ? 'block' : 'none';
 }
 
+// ── Bottom Tab Bar ───────────────────────────────────────────────────
+function switchBottomTab(name, btn) {
+    document.querySelectorAll('.bottom-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.bottom-tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('bottom-tab-' + name).classList.add('active');
+}
+
+// ── Ideas ─────────────────────────────────────────────────────────────
+function getIdeas() { return JSON.parse(localStorage.getItem('ideas') || '[]'); }
+function saveIdeasLocal(ideas) { localStorage.setItem('ideas', JSON.stringify(ideas)); }
+
+async function addIdea() {
+    const input = document.getElementById('ideaInput');
+    const text = input.value.trim();
+    if (!text) return;
+    const idea = { id: 'idea-' + Date.now(), text, created_at: new Date().toISOString() };
+    const ideas = getIdeas();
+    ideas.unshift(idea);
+    saveIdeasLocal(ideas);
+    input.value = '';
+    renderIdeas();
+    await sbUpsert('ideas', { id: idea.id, text: idea.text, created_at: idea.created_at }, { onConflict: 'id' }, 'idea add');
+}
+
+async function deleteIdea(id) {
+    saveIdeasLocal(getIdeas().filter(i => i.id !== id));
+    renderIdeas();
+    await sbDelete('ideas', q => q.eq('id', id), 'idea delete');
+}
+
+function renderIdeas() {
+    const ideas = getIdeas();
+    const list = document.getElementById('ideasList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!ideas.length) {
+        list.innerHTML = '<div class="empty">No ideas yet — add your first one above</div>';
+        return;
+    }
+    ideas.forEach(idea => {
+        const el = document.createElement('div');
+        el.className = 'idea-card';
+        const date = new Date(idea.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        el.innerHTML = `
+            <div class="idea-card-content">
+                <div class="idea-card-text">${esc(idea.text)}</div>
+                <div class="idea-card-date">${date}</div>
+            </div>
+            <button class="idea-del-btn" onclick="deleteIdea('${idea.id}')">×</button>
+        `;
+        list.appendChild(el);
+    });
+}
+
+// ── Ideas Notes ───────────────────────────────────────────────────────
+let _ideasNoteTimer = null;
+function debounceIdeasNote(val) {
+    clearTimeout(_ideasNoteTimer);
+    _ideasNoteTimer = setTimeout(() => saveIdeasNote(val), 1000);
+}
+async function saveIdeasNote(content) {
+    localStorage.setItem('ideas_note', content);
+    await sbUpsert('notes', { id: 'main', content, updated_at: new Date().toISOString() }, { onConflict: 'id' }, 'ideas note');
+}
+function loadIdeasNote() {
+    const v = localStorage.getItem('ideas_note');
+    const el = document.getElementById('ideasNotesArea');
+    if (el && v) el.value = v;
+}
+
+async function syncIdeasToCloud() {
+    const ideas = getIdeas();
+    if (!ideas.length) return true;
+    return sbUpsert('ideas', ideas.map(i => ({ id: i.id, text: i.text, created_at: i.created_at })), { onConflict: 'id' }, 'ideas sync');
+}
+async function syncIdeasNoteToCloud() {
+    const content = localStorage.getItem('ideas_note');
+    if (!content) return true;
+    return sbUpsert('notes', { id: 'main', content, updated_at: new Date().toISOString() }, { onConflict: 'id' }, 'ideas note sync');
+}
+
 // ── Init ──────────────────────────────────────────────────────────────
 updateGreeting();
 setMotd();
@@ -2435,6 +2618,8 @@ renderNN();
 renderMindsetCheck();
 renderHistory();
 loadTextareas();
+renderIdeas();
+loadIdeasNote();
 calcStreak();
 updateGlobal();
 
