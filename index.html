@@ -1882,7 +1882,9 @@ function calcStreak() {
         const key = d.toISOString().split('T')[0];
         const raw = localStorage.getItem('sched_' + key);
         if (!raw) { if (i === 0) continue; break; }
-        const items = JSON.parse(raw);
+        let items = JSON.parse(raw);
+        if (!Array.isArray(items)) items = [];
+        if (items.length === 0) { if (i === 0) continue; break; }
         const pct = items.filter(x => x.done).length / items.length;
         if (pct >= 0.5) streak++;
         else if (i > 0) break;
