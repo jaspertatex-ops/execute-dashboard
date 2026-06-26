@@ -1371,7 +1371,10 @@ function dayQuality(pct) { return pct >= 75 ? 'good' : pct >= 50 ? 'ok' : 'bad';
 // ── Non-Negotiables ───────────────────────────────────────────────────
 function getNNState() {
     const s = localStorage.getItem('nn_' + today);
-    if (s) return JSON.parse(s);
+    if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    }
     return Object.fromEntries(NN_ITEMS.map(i => [i.id, false]));
 }
 function saveNNState(state) { localStorage.setItem('nn_' + today, JSON.stringify(state)); syncScheduleToCloud(); }
@@ -1417,10 +1420,11 @@ function getSavedCompletions() {
     if (Array.isArray(parsed)) {
         // Old format: full task array — extract label → done map
         const map = {};
-        parsed.forEach(item => { if (item.label) map[item.label] = !!item.done; });
+        parsed.forEach(item => { if (item && item.label) map[item.label] = !!item.done; });
         return map;
     }
-    return parsed; // New format: already a label → done map
+    if (parsed && typeof parsed === 'object') return parsed;
+    return {};
 }
 
 function getSchedule() {
@@ -1484,7 +1488,10 @@ function resetDay() {
 }
 
 // ── To-Do ─────────────────────────────────────────────────────────────
-function getTodos() { return JSON.parse(localStorage.getItem('todos') || '[]'); }
+function getTodos() {
+    const parsed = JSON.parse(localStorage.getItem('todos') || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+}
 function saveTodos(t) { localStorage.setItem('todos', JSON.stringify(t)); syncTodosToCloud(); }
 
 function addTodo() {
@@ -1597,7 +1604,7 @@ function saveDayLog(force = false) {
         const existing = localStorage.getItem('log_' + today);
         if (existing) {
             const prev = JSON.parse(existing);
-            if (prev.schedPct >= schedPct) return;
+            if (prev && typeof prev === 'object' && prev.schedPct >= schedPct) return;
         }
     }
 
@@ -1614,7 +1621,8 @@ function saveDayLog(force = false) {
     };
     localStorage.setItem('log_' + today, JSON.stringify(log));
 
-    const index = JSON.parse(localStorage.getItem('logs_index') || '[]');
+    const rawIdx = JSON.parse(localStorage.getItem('logs_index') || '[]');
+    const index  = Array.isArray(rawIdx) ? rawIdx : [];
     if (!index.includes(today)) { index.push(today); index.sort(); localStorage.setItem('logs_index', JSON.stringify(index)); }
 
     syncDayLogToCloud(log);
@@ -1683,7 +1691,9 @@ function renderHistory() {
             };
         }
         const raw = localStorage.getItem('log_' + date);
-        return raw ? JSON.parse(raw) : null;
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null;
     });
 
     // Summary line
